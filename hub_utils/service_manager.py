@@ -63,6 +63,12 @@ class ServiceManager:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.pid_store_path = self.runtime_dir / "service_pids.json"
         self._pids = self._load_pids()
+        if self._psutil is None:
+            print(
+                "Warning: psutil is not installed. Process management will be limited; "
+                "install psutil to enable full start/stop controls.",
+                file=sys.stderr,
+            )
 
     def _load_pids(self) -> dict:
         if self.pid_store_path.exists():
@@ -77,6 +83,8 @@ class ServiceManager:
     def _service_process(self, pid: int):
         psutil = self._psutil
         if not pid:
+            return None
+        if psutil is None:
             return None
         if psutil.pid_exists(pid):
             try:
@@ -135,6 +143,16 @@ class ServiceManager:
         psutil = self._psutil
         process = self._service_process(pid)
 
+        if psutil is None:
+            if pid:
+                try:
+                    if os.name == "nt":
+                        os.kill(pid, signal.SIGTERM)
+                    else:
+                        os.kill(pid, signal.SIGTERM)
+                except OSError:
+                    pass
+        elif process:
         if process:
             for child in process.children(recursive=True):
                 try:
@@ -149,6 +167,7 @@ class ServiceManager:
             except psutil.Error:
                 pass
 
+        if psutil is not None and service.get("port"):
         if service.get("port"):
             self._kill_by_port(service["port"])
 
@@ -158,6 +177,8 @@ class ServiceManager:
 
     def _kill_by_port(self, port: int) -> None:
         psutil = self._psutil
+        if psutil is None:
+            return
         try:
             for conn in psutil.net_connections(kind="inet"):
                 if conn.laddr and conn.laddr.port == port and conn.pid:
