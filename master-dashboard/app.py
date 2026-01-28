@@ -18,6 +18,16 @@ from hub_utils.service_manager import ServiceManager, load_services
 
 app = Flask(__name__)
 
+from flask import Flask, jsonify, render_template_string
+
+from hub_utils.service_manager import ServiceManager, load_services
+
+BASE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BASE_DIR.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+app = Flask(__name__)
+
 CONFIG_PATH = (REPO_ROOT / "hub-config" / "main_services.json").resolve()
 config_data = load_services(CONFIG_PATH)
 SERVICES = config_data["services"]
