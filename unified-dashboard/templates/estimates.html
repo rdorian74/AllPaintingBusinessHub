@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Estimates - {{ hub_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-white">Estimate Generation</h2>
+            <p class="text-gray-400 mt-1">Generate and validate professional PDF estimates</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="http://localhost:5000" target="_blank" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>New Estimate</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Service Status -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% set estimate_services = ['estimate-generator', 'ai-agent'] %}
+        {% for service_id in estimate_services %}
+        {% if service_id in services %}
+        {% set service = services[service_id] %}
+        {% set is_running = statuses.get(service_id, false) %}
+        <div class="glass rounded-xl p-6" data-service="{{ service_id }}">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg {{ 'bg-blue-500/20' if service_id == 'estimate-generator' else 'bg-purple-500/20' }} flex items-center justify-center">
+                        {% if service_id == 'estimate-generator' %}
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        {% else %}
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-white">{{ service.name }}</h3>
+                        <p class="text-xs text-gray-500">Port {{ service.port }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="status-dot {{ 'running' if is_running else 'stopped' }}"></span>
+                    <span class="status-text text-sm {{ 'text-green-400' if is_running else 'text-red-400' }}">
+                        {{ 'Running' if is_running else 'Stopped' }}
+                    </span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-400 mb-4">
+                {% if service_id == 'estimate-generator' %}
+                Convert Word documents to professional PDF estimates using AI-powered formatting.
+                {% else %}
+                Validate estimate PDFs before sending to clients with auto-correction capabilities.
+                {% endif %}
+            </p>
+            <div class="flex items-center space-x-2">
+                <button onclick="startService('{{ service_id }}')"
+                        class="btn-start flex-1 py-2 rounded-lg text-sm font-medium {{ 'bg-green-500/20 text-green-400 hover:bg-green-500/30' if not is_running else 'bg-gray-500/10 text-gray-500 cursor-not-allowed opacity-50' }}"
+                        {{ 'disabled' if is_running }}>
+                    Start
+                </button>
+                <button onclick="stopService('{{ service_id }}')"
+                        class="btn-stop flex-1 py-2 rounded-lg text-sm font-medium {{ 'bg-red-500/20 text-red-400 hover:bg-red-500/30' if is_running else 'bg-gray-500/10 text-gray-500 cursor-not-allowed opacity-50' }}"
+                        {{ 'disabled' if not is_running }}>
+                    Stop
+                </button>
+                {% if service.get('has_ui') %}
+                <a href="http://localhost:{{ service.port }}" target="_blank"
+                   class="flex-1 py-2 rounded-lg text-sm font-medium text-center {{ 'bg-primary-500/20 text-primary-400 hover:bg-primary-500/30' if is_running else 'bg-gray-500/10 text-gray-500 pointer-events-none opacity-50' }}">
+                    Open
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- AI Agent Stats -->
+    {% if ai_stats %}
+    <div class="glass rounded-xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">AI Validation Statistics</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-dark-800/50 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Total Validations</p>
+                <p class="text-2xl font-bold text-white">{{ ai_stats.total_validations or 0 }}</p>
+            </div>
+            <div class="bg-dark-800/50 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Passed</p>
+                <p class="text-2xl font-bold text-green-400">{{ ai_stats.passed or 0 }}</p>
+            </div>
+            <div class="bg-dark-800/50 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Auto-corrected</p>
+                <p class="text-2xl font-bold text-yellow-400">{{ ai_stats.auto_corrected or 0 }}</p>
+            </div>
+            <div class="bg-dark-800/50 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Manual Review</p>
+                <p class="text-2xl font-bold text-red-400">{{ ai_stats.manual_review or 0 }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Workflow -->
+    <div class="glass rounded-xl p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Estimate Workflow</h3>
+        <div class="flex items-center justify-between">
+            <div class="flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-2">
+                    <span class="text-blue-400 font-bold">1</span>
+                </div>
+                <p class="text-sm text-gray-300">Upload Word Doc</p>
+            </div>
+            <div class="flex-1 h-0.5 bg-dark-700 mx-4"></div>
+            <div class="flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-2">
+                    <span class="text-purple-400 font-bold">2</span>
+                </div>
+                <p class="text-sm text-gray-300">AI Processing</p>
+            </div>
+            <div class="flex-1 h-0.5 bg-dark-700 mx-4"></div>
+            <div class="flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mb-2">
+                    <span class="text-green-400 font-bold">3</span>
+                </div>
+                <p class="text-sm text-gray-300">PDF Generated</p>
+            </div>
+            <div class="flex-1 h-0.5 bg-dark-700 mx-4"></div>
+            <div class="flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center mb-2">
+                    <span class="text-yellow-400 font-bold">4</span>
+                </div>
+                <p class="text-sm text-gray-300">Validation</p>
+            </div>
+            <div class="flex-1 h-0.5 bg-dark-700 mx-4"></div>
+            <div class="flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-pink-500/20 flex items-center justify-center mb-2">
+                    <span class="text-pink-400 font-bold">5</span>
+                </div>
+                <p class="text-sm text-gray-300">Send to Client</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

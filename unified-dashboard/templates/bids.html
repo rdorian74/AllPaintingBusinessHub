@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Bids - {{ hub_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-white">Bid Management</h2>
+            <p class="text-gray-400 mt-1">Track and manage all incoming bids</p>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="scanForBids()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>Scan Emails</span>
+            </button>
+            <a href="http://localhost:3030" target="_blank" class="glass px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                <span>Open Bid Center</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Service Status -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {% set bid_services = ['bid-email-scanner', 'bid-pipedrive-sync', 'bid-calendar', 'bid-notifications'] %}
+        {% for service_id in bid_services %}
+        {% if service_id in services %}
+        {% set service = services[service_id] %}
+        {% set is_running = statuses.get(service_id, false) %}
+        <div class="glass rounded-lg p-4 flex items-center justify-between" data-service="{{ service_id }}">
+            <div class="flex items-center space-x-3">
+                <div class="status-dot {{ 'running' if is_running else 'stopped' }}"></div>
+                <span class="text-sm text-gray-300">{{ service.name }}</span>
+            </div>
+            <button onclick="{{ 'stopService' if is_running else 'startService' }}('{{ service_id }}')"
+                    class="text-xs px-2 py-1 rounded {{ 'bg-red-500/20 text-red-400' if is_running else 'bg-green-500/20 text-green-400' }}">
+                {{ 'Stop' if is_running else 'Start' }}
+            </button>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Bids Table -->
+    <div class="glass rounded-xl overflow-hidden">
+        <div class="p-4 border-b border-dark-700 flex items-center justify-between">
+            <h3 class="font-semibold text-white">Active Bids</h3>
+            <div class="flex items-center space-x-2">
+                <input type="text" id="bid-search" placeholder="Search bids..."
+                       class="bg-dark-800 border border-dark-600 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-primary-500">
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-dark-800/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">GC Company</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Due Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bids-table-body" class="divide-y divide-dark-700">
+                    {% if bids %}
+                        {% for bid in bids %}
+                        <tr class="hover:bg-dark-800/30">
+                            <td class="px-4 py-3 text-sm text-gray-300">{{ bid.gc_company or 'Unknown' }}</td>
+                            <td class="px-4 py-3 text-sm text-white">{{ bid.project_name or bid.subject or 'Untitled' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-300">{{ bid.due_date or 'TBD' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 text-xs rounded-full {{ 'bg-green-500/20 text-green-400' if bid.status == 'synced' else 'bg-yellow-500/20 text-yellow-400' }}">
+                                    {{ bid.status or 'pending' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center space-x-2">
+                                    <button class="text-xs px-2 py-1 rounded bg-primary-500/20 text-primary-400 hover:bg-primary-500/30">
+                                        View
+                                    </button>
+                                    <button class="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30">
+                                        Sync
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <p>No bids found</p>
+                                    <p class="text-sm mt-1">Start the Bid Email Scanner to scan for new bids</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function scanForBids() {
+        try {
+            showToast('Scanning emails for bids...', 'success');
+            const resp = await fetch('/api/proxy/bid-email-scanner/api/scan', { method: 'POST' });
+            const data = await resp.json();
+            showToast('Scan complete!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } catch (e) {
+            showToast('Scan failed: ' + e.message, 'error');
+        }
+    }
+
+    // Search functionality
+    document.getElementById('bid-search')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#bids-table-body tr');
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}
