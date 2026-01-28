@@ -14,8 +14,6 @@ def _load_psutil():
         import psutil  # type: ignore
     except ImportError:
         return None
-    except ImportError as exc:
-        raise RuntimeError("psutil is required to manage service processes.") from exc
     return psutil
 
 
@@ -152,14 +150,6 @@ class ServiceManager:
                 except OSError:
                     pass
         elif process:
-                    if os.name == "nt":
-                        os.kill(pid, signal.SIGTERM)
-                    else:
-                        os.kill(pid, signal.SIGTERM)
-                except OSError:
-                    pass
-        elif process:
-        if process:
             for child in process.children(recursive=True):
                 try:
                     child.terminate()
@@ -174,7 +164,6 @@ class ServiceManager:
                 pass
 
         if psutil is not None and service.get("port"):
-        if service.get("port"):
             self._kill_by_port(service["port"])
 
         self._pids.pop(service_id, None)
