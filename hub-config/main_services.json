@@ -1,0 +1,125 @@
+{
+  "hub_name": "All Painting Business Hub",
+  "services": {
+    "ai-agent": {
+      "name": "AI Agent",
+      "port": 5011,
+      "path": "ai-agent",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "bid-addendum-agent": {
+      "name": "Bid/Addendum Agent",
+      "port": 5012,
+      "path": "bid-addendum-agent",
+      "script": "main.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "bid-center": {
+      "name": "Bid Center",
+      "port": 3030,
+      "path": "bid-system-v2/bid-center",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "bid-email-scanner": {
+      "name": "Bid Email Scanner",
+      "port": 3031,
+      "path": "bid-system-v2/bid-email-scanner",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "bid-pipedrive-sync": {
+      "name": "Bid Pipedrive Sync",
+      "port": 3032,
+      "path": "bid-system-v2/bid-pipedrive-sync",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "bid-calendar": {
+      "name": "Bid Calendar",
+      "port": 3033,
+      "path": "bid-system-v2/bid-calendar",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "bid-notifications": {
+      "name": "Bid Notifications",
+      "port": 3034,
+      "path": "bid-system-v2/bid-notifications",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "bid-quote-sent-mover": {
+      "name": "Bid Quote Sent Mover",
+      "port": 3035,
+      "path": "bid-system-v2/bid-quote-sent-mover",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "bid-followup-creator": {
+      "name": "Bid Follow-up Creator",
+      "port": 3036,
+      "path": "bid-system-v2/bid-followup-creator",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": false
+    },
+    "estimate-generator": {
+      "name": "Estimate Generator",
+      "port": 5000,
+      "path": "estimate-generator",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "invoice-generator": {
+      "name": "Invoice Generator",
+      "port": 5001,
+      "path": "invoice-generator",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "invoice-converter": {
+      "name": "Invoice Converter",
+      "port": 5005,
+      "path": "invoice_converter",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "followup-manager": {
+      "name": "Follow Up Manager",
+      "port": 1000,
+      "path": "followup-manager",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "payroll-app": {
+      "name": "Payroll App",
+      "port": 5003,
+      "path": "payroll_app",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    },
+    "quickbooks-sync": {
+      "name": "QuickBooks Sync",
+      "port": 5015,
+      "path": "quickbooks-sync",
+      "script": "app.py",
+      "has_venv": true,
+      "has_ui": true
+    }
+  }
+}
