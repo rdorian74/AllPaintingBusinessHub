@@ -1,0 +1,13 @@
+{
+  "hub_name": "All Painting Business Subhub",
+  "services": {
+    "estimate-automation": {
+      "name": "Estimate Automation",
+      "port": 5002,
+      "path": "estimate-automation",
+      "script": "main.py",
+      "has_venv": true,
+      "has_ui": true
+    }
+  }
+}

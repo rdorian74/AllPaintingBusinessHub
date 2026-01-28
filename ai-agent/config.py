@@ -67,7 +67,10 @@ COST_PER_1K_OUTPUT_TOKENS = 0.015
 # DATABASE
 # =============================================================================
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "agent_history.db")
+DATABASE_PATH = os.environ.get(
+    "AI_AGENT_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "agent_history.db"),
+)
 
 # =============================================================================
 # LOGGING
