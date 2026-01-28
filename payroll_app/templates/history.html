@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Payment History{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Payment History</h2>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-outline" onclick="exportCSV()">📥 Export CSV</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="GET" style="margin-bottom: 25px;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                    <label class="form-label">Employee</label>
+                    <select name="employee" class="form-input">
+                        <option value="">All Employees</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.employee_name }}" 
+                                {% if filters.employee == emp.employee_name %}selected{% endif %}>
+                            {{ emp.employee_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-input">
+                        <option value="">All</option>
+                        <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="sent" {% if filters.status == 'sent' %}selected{% endif %}>Sent</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="date_from" class="form-input" value="{{ filters.date_from or '' }}">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="date_to" class="form-input" value="{{ filters.date_to or '' }}">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{{ url_for('history') }}" class="btn btn-outline">Clear</a>
+            </div>
+        </form>
+        
+        <!-- Stats Summary -->
+        <div class="stats-grid" style="margin-bottom: 25px;">
+            <div class="stat-card">
+                <div class="stat-label">Showing</div>
+                <div class="stat-value">{{ stats.total_payments }}</div>
+                <div class="stat-sub">payments</div>
+            </div>
+            <div class="stat-card primary">
+                <div class="stat-label">Total Amount</div>
+                <div class="stat-value">${{ '{:,.0f}'.format(stats.total_amount) }}</div>
+            </div>
+        </div>
+        
+        {% if payments %}
+        <div class="table-container">
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Pay Date</th>
+                        <th>Pay Period</th>
+                        <th>Hours</th>
+                        <th>Gross</th>
+                        <th>Deductions</th>
+                        <th>Net Pay</th>
+                        <th>Status</th>
+                        <th>Sent</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td><strong>{{ payment.employee_name }}</strong></td>
+                        <td>{{ payment.pay_date or 'N/A' }}</td>
+                        <td style="font-size: 13px;">{{ payment.pay_period or 'N/A' }}</td>
+                        <td>
+                            <span title="Regular: {{ payment.regular_hours or 0 }}, OT: {{ payment.overtime_hours or 0 }}, Stat: {{ payment.stat_hours or 0 }}">
+                                {{ (payment.regular_hours or 0) + (payment.overtime_hours or 0) + (payment.stat_hours or 0) }}
+                            </span>
+                        </td>
+                        <td>${{ '{:,.2f}'.format(payment.gross_pay or 0) }}</td>
+                        <td style="color: var(--danger);">-${{ '{:,.2f}'.format(payment.deductions or 0) }}</td>
+                        <td><span class="amount">${{ '{:,.2f}'.format(payment.net_pay) }}</span></td>
+                        <td>
+                            <span class="badge badge-{{ 'sent' if payment.status == 'sent' else 'pending' }}">
+                                {{ payment.status }}
+                            </span>
+                        </td>
+                        <td style="font-size: 13px; color: var(--gray-500);">
+                            {{ payment.sent_at[:10] if payment.sent_at else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+            <h3 style="color: var(--gray-600); margin-bottom: 10px;">No Payments Found</h3>
+            <p style="color: var(--gray-500);">Try adjusting your filters or upload payroll files to get started</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportCSV() {
+    const table = document.getElementById('historyTable');
+    if (!table) {
+        alert('No data to export');
+        return;
+    }
+    
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td, th');
+        const rowData = [];
+        cols.forEach(col => {
+            let text = col.innerText.replace(/"/g, '""');
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'payroll_history_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar - Bid Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">🏢 Bid Center</h1>
+                    <p class="text-blue-200 text-sm">All Painting Ltd. - Bid Management System</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="/" class="px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
+                    <a href="/bids" class="px-4 py-2 rounded hover:bg-blue-700">Bids</a>
+                    <a href="/sync" class="px-4 py-2 rounded hover:bg-blue-700">Sync</a>
+                    <a href="/quote-sent" class="px-4 py-2 rounded hover:bg-blue-700">Move</a>
+                    <a href="/calendar" class="px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">Calendar</a>
+                    <a href="/notifications" class="px-4 py-2 rounded hover:bg-blue-700">Notifications</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Page Header -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">📅 Calendar Events</h2>
+            <p class="text-gray-600">Creates Outlook calendar events for bid deadlines using Microsoft Graph API. Events include project details and GC contact info. Default reminder is 1 day before deadline.</p>
+        </div>
+
+        <!-- Settings -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="font-semibold mb-4">Calendar Settings</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-gray-600 text-sm">Event Start Time</label>
+                    <input type="time" id="start-time" class="w-full mt-1 p-2 border rounded" value="08:00">
+                </div>
+                <div>
+                    <label class="text-gray-600 text-sm">Event End Time</label>
+                    <input type="time" id="end-time" class="w-full mt-1 p-2 border rounded" value="09:00">
+                </div>
+                <div>
+                    <label class="text-gray-600 text-sm">Reminder</label>
+                    <select id="reminder" class="w-full mt-1 p-2 border rounded">
+                        <option value="0">No reminder</option>
+                        <option value="60">1 hour before</option>
+                        <option value="240">4 hours before</option>
+                        <option value="1440" selected>1 day before</option>
+                        <option value="2880">2 days before</option>
+                        <option value="10080">1 week before</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="saveSettings()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Save Settings
+            </button>
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Due Today -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="font-semibold mb-4 text-red-600">🚨 Due TODAY</h3>
+                <div id="bids-today" class="space-y-3">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Due Tomorrow -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="font-semibold mb-4 text-orange-500">⏰ Due TOMORROW</h3>
+                <div id="bids-tomorrow" class="space-y-3">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/calendar/settings');
+                const data = await response.json();
+                
+                if (data.calendar_start_time) document.getElementById('start-time').value = data.calendar_start_time;
+                if (data.calendar_end_time) document.getElementById('end-time').value = data.calendar_end_time;
+                if (data.calendar_reminder) document.getElementById('reminder').value = data.calendar_reminder;
+            } catch (e) {
+                console.error('Error loading settings:', e);
+            }
+        }
+
+        async function saveSettings() {
+            try {
+                await fetch('/api/calendar/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        calendar_start_time: document.getElementById('start-time').value,
+                        calendar_end_time: document.getElementById('end-time').value,
+                        calendar_reminder: parseInt(document.getElementById('reminder').value)
+                    })
+                });
+                alert('Settings saved!');
+            } catch (e) {
+                alert('Error saving settings');
+            }
+        }
+
+        async function loadBids() {
+            try {
+                // Load today
+                const todayResp = await fetch('/api/bids/due-today');
+                const todayData = await todayResp.json();
+                
+                if (todayData.bids && todayData.bids.length > 0) {
+                    document.getElementById('bids-today').innerHTML = todayData.bids.map(bid => `
+                        <div class="border-l-4 border-red-500 pl-4 py-2">
+                            <div class="font-medium">${bid.project_name || 'Unknown'}</div>
+                            <div class="text-sm text-gray-600">${bid.gc_company || ''}</div>
+                            <div class="text-sm text-gray-500">${bid.bid_due_time || ''}</div>
+                            <button onclick="createEvent(${bid.id})" class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                                📅 Create Calendar Event
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('bids-today').innerHTML = '<p class="text-green-600">✓ No bids due today</p>';
+                }
+
+                // Load tomorrow
+                const tomorrowResp = await fetch('/api/bids/due-tomorrow');
+                const tomorrowData = await tomorrowResp.json();
+                
+                if (tomorrowData.bids && tomorrowData.bids.length > 0) {
+                    document.getElementById('bids-tomorrow').innerHTML = tomorrowData.bids.map(bid => `
+                        <div class="border-l-4 border-orange-500 pl-4 py-2">
+                            <div class="font-medium">${bid.project_name || 'Unknown'}</div>
+                            <div class="text-sm text-gray-600">${bid.gc_company || ''}</div>
+                            <div class="text-sm text-gray-500">${bid.bid_due_time || ''}</div>
+                            <button onclick="createEvent(${bid.id})" class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                                📅 Create Calendar Event
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('bids-tomorrow').innerHTML = '<p class="text-green-600">✓ No bids due tomorrow</p>';
+                }
+            } catch (e) {
+                console.error('Error loading bids:', e);
+                document.getElementById('bids-today').innerHTML = '<p class="text-red-500">Error loading</p>';
+                document.getElementById('bids-tomorrow').innerHTML = '<p class="text-red-500">Error loading</p>';
+            }
+        }
+
+        async function createEvent(bidId) {
+            if (!confirm('Create calendar event for this bid?')) return;
+            try {
+                const response = await fetch(`/api/calendar/create/${bidId}`, { method: 'POST' });
+                const data = await response.json();
+                alert(data.success ? 'Calendar event created!' : `Error: ${data.error}`);
+            } catch (e) {
+                alert('Error creating event');
+            }
+        }
+
+        loadSettings();
+        loadBids();
+    </script>
+</body>
+</html>

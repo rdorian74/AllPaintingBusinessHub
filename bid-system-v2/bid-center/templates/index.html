@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Center - All Painting Ltd.</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .service-card { transition: all 0.3s ease; }
+        .service-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .status-online { background: #10b981; }
+        .status-offline { background: #ef4444; }
+        
+        /* Pipeline styles */
+        .pipeline-box {
+            user-select: none;
+        }
+        .pipeline-box.enabled {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-color: #047857;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+        .pipeline-box.disabled {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            color: white;
+            border-color: #4b5563;
+            box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+        }
+        .pipeline-box.running {
+            animation: pulse-green 1.5s infinite;
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 4px 25px rgba(16, 185, 129, 0.8); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">🏢 Bid Center</h1>
+                    <p class="text-blue-200 text-sm">All Painting Ltd. - Bid Management System</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="/" class="px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">Dashboard</a>
+                    <a href="/bids" class="px-4 py-2 rounded hover:bg-blue-700">Bids</a>
+                    <a href="/sync" class="px-4 py-2 rounded hover:bg-blue-700">Sync</a>
+                    <a href="/quote-sent" class="px-4 py-2 rounded hover:bg-blue-700">Move</a>
+                    <a href="http://localhost:3036" class="px-4 py-2 rounded hover:bg-blue-700">Follow-Up</a>
+                    <a href="/calendar" class="px-4 py-2 rounded hover:bg-blue-700">Calendar</a>
+                    <a href="/notifications" class="px-4 py-2 rounded hover:bg-blue-700">Notifications</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Service Status Cards -->
+        <h2 class="text-xl font-semibold mb-4">Service Status</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8" id="services-grid">
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">📧 Email Scanner</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-email_scanner"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3031</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-email_scanner">Loading...</p>
+            </div>
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">🔄 Pipedrive Sync</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-pipedrive_sync"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3032</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-pipedrive_sync">Loading...</p>
+            </div>
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">📤 Quote Sent Mover</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-quote_sent_mover"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3035</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-quote_sent_mover">Loading...</p>
+            </div>
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">📨 Follow-Up Creator</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-followup_creator"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3036</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-followup_creator">Loading...</p>
+            </div>
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">📅 Calendar</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-calendar"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3033</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-calendar">Loading...</p>
+            </div>
+            <div class="service-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold">🔔 Notifications</h3>
+                    <span class="w-3 h-3 rounded-full status-offline" id="status-notifications"></span>
+                </div>
+                <p class="text-gray-600 text-sm">Port 3034</p>
+                <p class="text-gray-500 text-xs mt-2" id="info-notifications">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <h2 class="text-xl font-semibold mb-4">Quick Stats</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-gray-500 text-sm">Total Bids</h3>
+                <p class="text-3xl font-bold text-blue-600" id="stat-total-bids">-</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-gray-500 text-sm">Pending Sync</h3>
+                <p class="text-3xl font-bold text-orange-500" id="stat-pending-sync">-</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-gray-500 text-sm">Due Today</h3>
+                <p class="text-3xl font-bold text-red-500" id="stat-due-today">-</p>
+            </div>
+        </div>
+
+        <!-- Sequence Pipeline -->
+        <h2 class="text-xl font-semibold mb-4">Sequence Pipeline</h2>
+        <div id="pipeline-card" class="bg-white rounded-lg shadow p-6 mb-8 border-2 border-gray-200 transition-all duration-300">
+            <!-- Master Toggle Header -->
+            <div class="flex items-center justify-between mb-4 pb-4 border-b">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="master-toggle" onchange="toggleMaster()" class="sr-only">
+                            <div id="master-toggle-bg" class="w-14 h-7 bg-gray-300 rounded-full shadow-inner transition-colors duration-300"></div>
+                            <div id="master-toggle-dot" class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300"></div>
+                        </div>
+                        <span id="master-label" class="text-lg font-semibold text-gray-500">Sequence OFF</span>
+                    </label>
+                </div>
+                <div id="scheduler-controls" class="flex items-center gap-3 opacity-50 pointer-events-none transition-opacity duration-300">
+                    <span class="text-sm text-gray-600">Auto-run every:</span>
+                    <select id="interval-select" onchange="updateInterval()" 
+                            class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="30">30 min</option>
+                        <option value="60" selected>1 hr</option>
+                        <option value="120">2 hrs</option>
+                        <option value="180">3 hrs</option>
+                        <option value="240">4 hrs</option>
+                        <option value="300">5 hrs</option>
+                        <option value="360">6 hrs</option>
+                        <option value="420">7 hrs</option>
+                        <option value="480">8 hrs</option>
+                        <option value="540">9 hrs</option>
+                        <option value="600">10 hrs</option>
+                    </select>
+                    <span class="text-sm text-gray-600">Scan last:</span>
+                    <select id="days-select" onchange="updateDays()" 
+                            class="bg-white border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="1" selected>1 day</option>
+                        <option value="3">3 days</option>
+                        <option value="7">7 days</option>
+                        <option value="14">14 days</option>
+                        <option value="30">30 days</option>
+                    </select>
+                </div>
+            </div>
+            
+            <p class="text-gray-600 text-sm mb-4">Click boxes to toggle steps on/off. Green = enabled, Gray = disabled.</p>
+            
+            <!-- Pipeline Visualization -->
+            <div id="pipeline-steps" class="flex flex-col items-center opacity-50 pointer-events-none transition-opacity duration-300">
+                <!-- Row 1: Email Scan -->
+                <div class="flex items-center justify-center mb-2">
+                    <div id="step-email_scan" onclick="toggleStep('email_scan')" 
+                         class="pipeline-box cursor-pointer rounded-lg p-4 w-40 text-center transition-all duration-300 hover:scale-105 border-2">
+                        <div class="text-2xl mb-1">📧</div>
+                        <div class="font-semibold text-sm">Email Scan</div>
+                        <div class="text-xs opacity-75">Step 1</div>
+                    </div>
+                </div>
+                
+                <!-- Split arrows down -->
+                <div class="flex items-center justify-center gap-16 mb-2">
+                    <div class="text-gray-400 text-xl">↙</div>
+                    <div class="text-gray-400 text-2xl">▼</div>
+                    <div class="text-gray-400 text-xl">↘</div>
+                </div>
+                
+                <!-- Row 2: Calendar, Pipedrive Sync, Notifications (all depend on Email Scan) -->
+                <div class="flex items-center justify-center gap-4 mb-2">
+                    <div id="step-calendar" onclick="toggleStep('calendar')" 
+                         class="pipeline-box cursor-pointer rounded-lg p-4 w-36 text-center transition-all duration-300 hover:scale-105 border-2">
+                        <div class="text-2xl mb-1">📅</div>
+                        <div class="font-semibold text-sm">Calendar</div>
+                        <div class="text-xs opacity-75">Step 2</div>
+                    </div>
+                    
+                    <div id="step-pipedrive_sync" onclick="toggleStep('pipedrive_sync')" 
+                         class="pipeline-box cursor-pointer rounded-lg p-4 w-36 text-center transition-all duration-300 hover:scale-105 border-2">
+                        <div class="text-2xl mb-1">🔄</div>
+                        <div class="font-semibold text-sm">Pipedrive Sync</div>
+                        <div class="text-xs opacity-75">Step 2</div>
+                    </div>
+                    
+                    <div id="step-notifications" onclick="toggleStep('notifications')" 
+                         class="pipeline-box cursor-pointer rounded-lg p-4 w-36 text-center transition-all duration-300 hover:scale-105 border-2">
+                        <div class="text-2xl mb-1">🔔</div>
+                        <div class="font-semibold text-sm">Notifications</div>
+                        <div class="text-xs opacity-75">Step 2</div>
+                    </div>
+                </div>
+                
+                <!-- Arrow down from Sync only -->
+                <div class="flex items-center justify-center mb-2">
+                    <div class="w-36"></div>
+                    <div class="text-gray-400 text-2xl w-36 text-center">▼</div>
+                    <div class="w-36"></div>
+                </div>
+                
+                <!-- Row 3: Quote Sent Mover (depends on Pipedrive Sync) -->
+                <div class="flex items-center justify-center mb-4">
+                    <div class="w-36"></div>
+                    <div id="step-quote_sent_mover" onclick="toggleStep('quote_sent_mover')" 
+                         class="pipeline-box cursor-pointer rounded-lg p-4 w-36 text-center transition-all duration-300 hover:scale-105 border-2">
+                        <div class="text-2xl mb-1">📤</div>
+                        <div class="font-semibold text-sm">Quote Mover</div>
+                        <div class="text-xs opacity-75">Step 3</div>
+                    </div>
+                    <div class="w-36"></div>
+                </div>
+            </div>
+            
+            <!-- Run Button -->
+            <div id="run-btn-container" class="flex justify-center mt-4 opacity-50 pointer-events-none transition-opacity duration-300">
+                <button onclick="runSequence()" id="run-sequence-btn"
+                        class="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 font-semibold shadow-lg transition-all duration-300 hover:scale-105">
+                    <span>▶</span> Run Sequence Now
+                </button>
+            </div>
+            
+            <div id="scheduler-status" class="text-center text-sm text-gray-500 mt-3"></div>
+            
+            <!-- Sequence Results -->
+            <div id="sequence-results" class="mt-4 hidden">
+                <div class="border-t pt-4">
+                    <h4 class="font-semibold text-sm text-gray-700 mb-2">Last Run Results:</h4>
+                    <div id="sequence-results-content" class="text-sm text-gray-600"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <h2 class="text-xl font-semibold mb-4">Quick Actions</h2>
+        <div class="flex gap-4 flex-wrap">
+            <button onclick="scanEmails()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                <span>📧</span> Scan Emails Now
+            </button>
+            <button onclick="syncAll()" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                <span>🔄</span> Sync to Pipedrive
+            </button>
+            <button onclick="sendDailyEmail()" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                <span>📬</span> Send Daily Email
+            </button>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold mb-4">Recent Activity</h2>
+            <div class="bg-white rounded-lg shadow p-6" id="activity-log">
+                <p class="text-gray-500">Loading activity...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Sequence settings state
+        let sequenceSettings = {
+            email_scan: false,
+            pipedrive_sync: false,
+            quote_sent_mover: false,
+            calendar: false,
+            notifications: false
+        };
+        
+        // Scheduler state
+        let schedulerEnabled = false;
+        let masterEnabled = false;
+
+        async function loadSequenceSettings() {
+            try {
+                const response = await fetch('/api/sequence/settings');
+                sequenceSettings = await response.json();
+                updatePipelineUI();
+            } catch (e) {
+                console.error('Error loading sequence settings:', e);
+                updatePipelineUI();
+            }
+        }
+        
+        async function loadSchedulerSettings() {
+            try {
+                const response = await fetch('/api/sequence/scheduler');
+                const data = await response.json();
+                schedulerEnabled = data.enabled;
+                masterEnabled = data.enabled;
+                
+                // Update master toggle UI
+                updateMasterToggleUI();
+                
+                // Update interval dropdown
+                document.getElementById('interval-select').value = data.interval_minutes;
+                
+                // Update days dropdown
+                document.getElementById('days-select').value = data.days_to_scan;
+                
+                // Update status text
+                const statusEl = document.getElementById('scheduler-status');
+                if (data.enabled) {
+                    const intervalText = document.getElementById('interval-select').selectedOptions[0].text;
+                    const daysText = document.getElementById('days-select').selectedOptions[0].text;
+                    statusEl.innerHTML = `<span class="text-green-600">● Scheduler active</span> - runs every ${intervalText}, scanning last ${daysText}`;
+                    if (data.last_run) {
+                        const lastTime = new Date(data.last_run.completed_at).toLocaleTimeString();
+                        statusEl.innerHTML += ` <span class="text-gray-400">(last: ${lastTime})</span>`;
+                    }
+                } else {
+                    statusEl.innerHTML = '';
+                }
+            } catch (e) {
+                console.error('Error loading scheduler settings:', e);
+            }
+        }
+        
+        function updateMasterToggleUI() {
+            const bg = document.getElementById('master-toggle-bg');
+            const dot = document.getElementById('master-toggle-dot');
+            const checkbox = document.getElementById('master-toggle');
+            const label = document.getElementById('master-label');
+            const card = document.getElementById('pipeline-card');
+            const steps = document.getElementById('pipeline-steps');
+            const runBtn = document.getElementById('run-btn-container');
+            const schedulerControls = document.getElementById('scheduler-controls');
+            
+            checkbox.checked = masterEnabled;
+            
+            if (masterEnabled) {
+                // ON state
+                bg.classList.remove('bg-gray-300');
+                bg.classList.add('bg-green-500');
+                dot.style.transform = 'translateX(28px)';
+                label.textContent = 'Sequence ON';
+                label.classList.remove('text-gray-500');
+                label.classList.add('text-green-600');
+                card.classList.remove('border-gray-200');
+                card.classList.add('border-green-400');
+                steps.classList.remove('opacity-50', 'pointer-events-none');
+                runBtn.classList.remove('opacity-50', 'pointer-events-none');
+                schedulerControls.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                // OFF state
+                bg.classList.remove('bg-green-500');
+                bg.classList.add('bg-gray-300');
+                dot.style.transform = 'translateX(0)';
+                label.textContent = 'Sequence OFF';
+                label.classList.remove('text-green-600');
+                label.classList.add('text-gray-500');
+                card.classList.remove('border-green-400');
+                card.classList.add('border-gray-200');
+                steps.classList.add('opacity-50', 'pointer-events-none');
+                runBtn.classList.add('opacity-50', 'pointer-events-none');
+                schedulerControls.classList.add('opacity-50', 'pointer-events-none');
+            }
+        }
+        
+        async function toggleMaster() {
+            masterEnabled = !masterEnabled;
+            schedulerEnabled = masterEnabled;
+            updateMasterToggleUI();
+            
+            try {
+                await fetch('/api/sequence/scheduler', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: masterEnabled })
+                });
+                loadSchedulerSettings();
+            } catch (e) {
+                console.error('Error toggling master:', e);
+            }
+        }
+        
+        async function updateInterval() {
+            const interval = parseInt(document.getElementById('interval-select').value);
+            try {
+                await fetch('/api/sequence/scheduler', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval_minutes: interval })
+                });
+                loadSchedulerSettings();
+            } catch (e) {
+                console.error('Error updating interval:', e);
+            }
+        }
+        
+        async function updateDays() {
+            const days = parseInt(document.getElementById('days-select').value);
+            try {
+                await fetch('/api/sequence/scheduler', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days_to_scan: days })
+                });
+                loadSchedulerSettings();
+            } catch (e) {
+                console.error('Error updating days:', e);
+            }
+        }
+
+        function updatePipelineUI() {
+            for (const [step, enabled] of Object.entries(sequenceSettings)) {
+                const el = document.getElementById(`step-${step}`);
+                if (el) {
+                    el.classList.remove('enabled', 'disabled');
+                    el.classList.add(enabled ? 'enabled' : 'disabled');
+                }
+            }
+        }
+
+        async function toggleStep(step) {
+            sequenceSettings[step] = !sequenceSettings[step];
+            updatePipelineUI();
+            
+            try {
+                await fetch('/api/sequence/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sequenceSettings)
+                });
+            } catch (e) {
+                console.error('Error saving sequence settings:', e);
+            }
+        }
+
+        async function runSequence() {
+            const enabledSteps = Object.entries(sequenceSettings)
+                .filter(([k, v]) => v)
+                .map(([k, v]) => k);
+            
+            if (enabledSteps.length === 0) {
+                alert('No steps enabled. Click on boxes to enable steps.');
+                return;
+            }
+            
+            if (!confirm(`Run sequence with ${enabledSteps.length} steps enabled?`)) return;
+            
+            const btn = document.getElementById('run-sequence-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="animate-spin">⏳</span> Running...';
+            btn.disabled = true;
+            
+            // Add running animation to enabled steps
+            for (const step of enabledSteps) {
+                const el = document.getElementById(`step-${step}`);
+                if (el) el.classList.add('running');
+            }
+            
+            try {
+                const response = await fetch('/api/sequence/run', { method: 'POST' });
+                const data = await response.json();
+                
+                // Show results
+                const resultsDiv = document.getElementById('sequence-results');
+                const resultsContent = document.getElementById('sequence-results-content');
+                resultsDiv.classList.remove('hidden');
+                
+                let html = `<div class="space-y-1">`;
+                for (const [step, result] of Object.entries(data.steps)) {
+                    const icon = result.skipped ? '⏭️' : (result.success ? '✅' : '❌');
+                    const status = result.skipped ? 'Skipped' : (result.success ? 'Success' : 'Failed');
+                    const stepName = step.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    html += `<div class="flex items-center gap-2">
+                        <span>${icon}</span>
+                        <span class="font-medium">${stepName}:</span>
+                        <span class="${result.success ? 'text-green-600' : 'text-gray-500'}">${status}</span>
+                    </div>`;
+                }
+                html += `</div>`;
+                html += `<p class="text-xs text-gray-400 mt-2">Completed at ${new Date(data.completed_at).toLocaleTimeString()}</p>`;
+                resultsContent.innerHTML = html;
+                
+                // Refresh dashboard data
+                loadStatus();
+                loadActivity();
+                
+            } catch (e) {
+                alert('Error running sequence: ' + e.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                // Remove running animation
+                for (const step of Object.keys(sequenceSettings)) {
+                    const el = document.getElementById(`step-${step}`);
+                    if (el) el.classList.remove('running');
+                }
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                for (const [service, info] of Object.entries(data.services)) {
+                    const statusEl = document.getElementById(`status-${service}`);
+                    const infoEl = document.getElementById(`info-${service}`);
+                    
+                    if (info.online) {
+                        statusEl.classList.remove('status-offline');
+                        statusEl.classList.add('status-online');
+                        
+                        const status = info.status;
+                        if (service === 'email_scanner') {
+                            infoEl.textContent = `${status.total_bids || 0} bids tracked`;
+                            document.getElementById('stat-total-bids').textContent = status.total_bids || 0;
+                        } else if (service === 'pipedrive_sync') {
+                            infoEl.textContent = `${status.pending_count || 0} pending sync`;
+                            document.getElementById('stat-pending-sync').textContent = status.pending_count || 0;
+                        } else if (service === 'quote_sent_mover') {
+                            const stats = status.stats || {};
+                            infoEl.textContent = `${stats.moved || 0} moved, ${stats.duplicates || 0} duplicates`;
+                        } else if (service === 'followup_creator') {
+                            infoEl.textContent = `${status.total_followups || 0} follow-ups created`;
+                        } else if (service === 'calendar') {
+                            infoEl.textContent = `${status.bids_due_today || 0} due today`;
+                            document.getElementById('stat-due-today').textContent = status.bids_due_today || 0;
+                        } else if (service === 'notifications') {
+                            infoEl.textContent = status.email_enabled ? 'Emails enabled' : 'Emails disabled';
+                        }
+                    } else {
+                        infoEl.textContent = 'Service offline';
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading status:', e);
+            }
+        }
+
+        async function loadActivity() {
+            try {
+                const response = await fetch('/api/sync/log');
+                const data = await response.json();
+                
+                if (data.log && data.log.length > 0) {
+                    const html = data.log.slice(0, 10).map(entry => `
+                        <div class="border-b py-2 last:border-0">
+                            <div class="flex justify-between">
+                                <span class="font-medium">${entry.action || 'sync'}</span>
+                                <span class="text-gray-500 text-sm">${new Date(entry.synced_at).toLocaleString()}</span>
+                            </div>
+                            <p class="text-gray-600 text-sm">${entry.message || ''}</p>
+                        </div>
+                    `).join('');
+                    document.getElementById('activity-log').innerHTML = html;
+                } else {
+                    document.getElementById('activity-log').innerHTML = '<p class="text-gray-500">No recent activity</p>';
+                }
+            } catch (e) {
+                document.getElementById('activity-log').innerHTML = '<p class="text-gray-500">Could not load activity</p>';
+            }
+        }
+
+        async function scanEmails() {
+            if (!confirm('Scan emails for new bids?')) return;
+            try {
+                const response = await fetch('/api/scan', { method: 'POST' });
+                const data = await response.json();
+                alert(`Scan complete: ${data.new_bids_created || 0} new bids found`);
+                loadStatus();
+            } catch (e) {
+                alert('Error scanning emails');
+            }
+        }
+
+        async function syncAll() {
+            if (!confirm('Sync all bids to Pipedrive?')) return;
+            try {
+                const response = await fetch('/api/sync', { method: 'POST' });
+                const data = await response.json();
+                alert(`Sync complete: ${data.summary?.created || 0} created, ${data.summary?.updated || 0} updated`);
+                loadStatus();
+                loadActivity();
+            } catch (e) {
+                alert('Error syncing');
+            }
+        }
+
+        async function sendDailyEmail() {
+            if (!confirm('Send daily deadline email now?')) return;
+            try {
+                const response = await fetch('/api/notifications/send-now', { method: 'POST' });
+                const data = await response.json();
+                alert(data.success ? 'Email sent!' : 'Failed to send email');
+            } catch (e) {
+                alert('Error sending email');
+            }
+        }
+
+        // Load on page load
+        loadStatus();
+        loadActivity();
+        loadSequenceSettings();
+        loadSchedulerSettings();
+        
+        // Refresh every 30 seconds
+        setInterval(loadStatus, 30000);
+        setInterval(loadSchedulerSettings, 30000);
+    </script>
+</body>
+</html>

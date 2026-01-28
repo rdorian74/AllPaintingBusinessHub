@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice to QuickBooks CSV Converter</title>
+    <style>
+        :root {
+            --navy: #1a365d;
+            --navy-light: #2c5282;
+            --navy-dark: #0f2744;
+            --accent: #4299e1;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --error: #f56565;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --gray-600: #718096;
+            --gray-800: #2d3748;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-800);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .upload-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .upload-zone {
+            border: 2px dashed var(--gray-300);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(66, 153, 225, 0.05);
+        }
+        
+        .upload-zone input {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: var(--gray-600);
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 16px;
+            color: var(--gray-600);
+        }
+        
+        .upload-text span {
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .supported-formats {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        
+        .invoices-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--navy);
+        }
+        
+        .badge {
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .invoice-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        .invoice-header {
+            background: var(--gray-100);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .invoice-header:hover {
+            background: var(--gray-200);
+        }
+        
+        .invoice-title {
+            font-weight: 600;
+            color: var(--navy);
+        }
+        
+        .invoice-meta {
+            font-size: 13px;
+            color: var(--gray-600);
+        }
+        
+        .invoice-body {
+            padding: 20px;
+            display: none;
+        }
+        
+        .invoice-body.expanded {
+            display: block;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-bottom: 5px;
+        }
+        
+        .form-group label.required::after {
+            content: ' *';
+            color: var(--error);
+        }
+        
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+        
+        .form-group input.invalid {
+            border-color: var(--error);
+        }
+        
+        .line-items-section {
+            margin-top: 20px;
+        }
+        
+        .line-items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .line-items-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--navy);
+        }
+        
+        .line-item {
+            background: var(--gray-100);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .line-item-grid {
+            display: grid;
+            grid-template-columns: 2fr 3fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: end;
+        }
+        
+        .line-item-grid input {
+            padding: 8px 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--navy);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--navy-light);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+        
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .actions-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        .preview-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .csv-preview {
+            background: var(--gray-800);
+            color: #a0e9a0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .csv-preview pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .status-message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #c6f6d5;
+            color: #276749;
+            display: block;
+        }
+        
+        .status-message.error {
+            background: #fed7d7;
+            color: #c53030;
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-600);
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--error);
+            cursor: pointer;
+            padding: 5px;
+            font-size: 18px;
+        }
+        
+        .delete-btn:hover {
+            color: #c53030;
+        }
+        
+        .raw-text-toggle {
+            margin-top: 15px;
+        }
+        
+        .raw-text-content {
+            background: var(--gray-100);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            display: none;
+        }
+        
+        .raw-text-content.visible {
+            display: block;
+        }
+        
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid var(--accent);
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            color: #2b6cb0;
+        }
+        
+        .field-help {
+            font-size: 11px;
+            color: var(--gray-600);
+            margin-top: 3px;
+        }
+        
+        table.qb-fields {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        
+        table.qb-fields th, table.qb-fields td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        table.qb-fields th {
+            background: var(--gray-100);
+            font-weight: 600;
+        }
+        
+        .mandatory-indicator {
+            color: var(--error);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>📄 Invoice to QuickBooks CSV Converter</h1>
+        <p>Convert your PDF and Word invoices to QuickBooks import format</p>
+    </header>
+    
+    <div class="container">
+        <div id="statusMessage" class="status-message"></div>
+        
+        <div class="upload-section">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📁</div>
+                <input type="file" id="fileInput" accept=".pdf,.docx" multiple>
+                <p class="upload-text">
+                    Drag & drop invoice files here or <span onclick="document.getElementById('fileInput').click()">browse</span>
+                </p>
+                <p class="supported-formats">Supported formats: PDF, DOCX</p>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <strong>QuickBooks CSV Format:</strong> Fields marked with * are mandatory. 
+            The converter will extract invoice data and format it for QuickBooks import.
+            You can edit the extracted data before generating the CSV.
+        </div>
+        
+        <div class="invoices-section" id="invoicesSection" style="display: none;">
+            <div class="section-header">
+                <h2 class="section-title">Extracted Invoices</h2>
+                <span class="badge" id="invoiceCount">0 invoices</span>
+            </div>
+            <div id="invoicesList"></div>
+            
+            <div class="actions-bar">
+                <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+                <button class="btn btn-primary" onclick="previewCSV()">Preview CSV</button>
+                <button class="btn btn-success" onclick="downloadCSV()">Download CSV</button>
+            </div>
+        </div>
+        
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <div class="section-header">
+                <h2 class="section-title">CSV Preview</h2>
+                <button class="btn btn-sm btn-secondary" onclick="copyCSV()">📋 Copy to Clipboard</button>
+            </div>
+            <div class="csv-preview" id="csvPreview">
+                <pre></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let invoices = [];
+        let csvContent = '';
+        
+        // File upload handling
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        async function handleFiles(files) {
+            for (const file of files) {
+                await uploadFile(file);
+            }
+        }
+        
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            showStatus(`Processing ${file.name}...`, 'info');
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    invoices.push({
+                        filename: result.filename,
+                        ...result.data
+                    });
+                    renderInvoices();
+                    showStatus(`Successfully extracted data from ${file.name}`, 'success');
+                } else {
+                    showStatus(`Error processing ${file.name}: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error uploading ${file.name}: ${error.message}`, 'error');
+            }
+        }
+        
+        function renderInvoices() {
+            const section = document.getElementById('invoicesSection');
+            const list = document.getElementById('invoicesList');
+            const countBadge = document.getElementById('invoiceCount');
+            
+            if (invoices.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            countBadge.textContent = `${invoices.length} invoice${invoices.length > 1 ? 's' : ''}`;
+            
+            list.innerHTML = invoices.map((inv, index) => `
+                <div class="invoice-card" id="invoice-${index}">
+                    <div class="invoice-header" onclick="toggleInvoice(${index})">
+                        <div>
+                            <div class="invoice-title">${inv.invoice_no || 'Invoice ' + (index + 1)}</div>
+                            <div class="invoice-meta">${inv.filename} • ${inv.customer || 'Unknown Customer'}</div>
+                        </div>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteInvoice(${index})">✕</button>
+                    </div>
+                    <div class="invoice-body" id="invoice-body-${index}">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="required">Invoice Number</label>
+                                <input type="text" value="${inv.invoice_no || ''}" 
+                                       onchange="updateInvoice(${index}, 'invoice_no', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label class="required">Customer</label>
+                                <input type="text" value="${inv.customer || ''}" 
+                                       onchange="updateInvoice(${index}, 'customer', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label class="required">Invoice Date</label>
+                                <input type="text" value="${inv.invoice_date || ''}" 
+                                       placeholder="DD/MM/YYYY"
+                                       onchange="updateInvoice(${index}, 'invoice_date', this.value)">
+                                <span class="field-help">Format: DD/MM/YYYY</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="required">Due Date</label>
+                                <input type="text" value="${inv.due_date || ''}" 
+                                       placeholder="DD/MM/YYYY"
+                                       onchange="updateInvoice(${index}, 'due_date', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Terms</label>
+                                <select onchange="updateInvoice(${index}, 'terms', this.value)">
+                                    <option value="Net 30" ${inv.terms === 'Net 30' ? 'selected' : ''}>Net 30</option>
+                                    <option value="Net 15" ${inv.terms === 'Net 15' ? 'selected' : ''}>Net 15</option>
+                                    <option value="Net 60" ${inv.terms === 'Net 60' ? 'selected' : ''}>Net 60</option>
+                                    <option value="Due on receipt" ${inv.terms === 'Due on receipt' ? 'selected' : ''}>Due on receipt</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Subtotal</label>
+                                <input type="text" value="${inv.subtotal || ''}" 
+                                       onchange="updateInvoice(${index}, 'subtotal', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>GST Amount</label>
+                                <input type="text" value="${inv.gst_amount || ''}" 
+                                       onchange="updateInvoice(${index}, 'gst_amount', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Total</label>
+                                <input type="text" value="${inv.total || ''}" 
+                                       onchange="updateInvoice(${index}, 'total', this.value)">
+                            </div>
+                        </div>
+                        
+                        <div class="line-items-section">
+                            <div class="line-items-header">
+                                <span class="line-items-title">Line Items</span>
+                                <button class="btn btn-sm btn-primary" onclick="addLineItem(${index})">+ Add Item</button>
+                            </div>
+                            <div id="line-items-${index}">
+                                ${renderLineItems(inv.line_items || [], index)}
+                            </div>
+                        </div>
+                        
+                        <div class="raw-text-toggle">
+                            <button class="btn btn-sm btn-secondary" onclick="toggleRawText(${index})">
+                                Show Extracted Text
+                            </button>
+                            <div class="raw-text-content" id="raw-text-${index}">${escapeHtml(inv.raw_text || '')}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderLineItems(items, invoiceIndex) {
+            if (!items || items.length === 0) {
+                return '<div class="empty-state">No line items extracted. Click "Add Item" to add manually.</div>';
+            }
+            
+            return items.map((item, itemIndex) => `
+                <div class="line-item">
+                    <div class="line-item-grid">
+                        <div class="form-group">
+                            <label>Item/Service</label>
+                            <input type="text" value="${item.item || ''}" 
+                                   onchange="updateLineItem(${invoiceIndex}, ${itemIndex}, 'item', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" value="${item.description || ''}" 
+                                   onchange="updateLineItem(${invoiceIndex}, ${itemIndex}, 'description', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Qty</label>
+                            <input type="text" value="${item.quantity || ''}" 
+                                   onchange="updateLineItem(${invoiceIndex}, ${itemIndex}, 'quantity', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Rate</label>
+                            <input type="text" value="${item.rate || ''}" 
+                                   onchange="updateLineItem(${invoiceIndex}, ${itemIndex}, 'rate', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount *</label>
+                            <input type="text" value="${item.amount || ''}" 
+                                   onchange="updateLineItem(${invoiceIndex}, ${itemIndex}, 'amount', this.value)">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-danger" style="margin-top: 10px;" 
+                            onclick="deleteLineItem(${invoiceIndex}, ${itemIndex})">Remove Item</button>
+                </div>
+            `).join('');
+        }
+        
+        function toggleInvoice(index) {
+            const body = document.getElementById(`invoice-body-${index}`);
+            body.classList.toggle('expanded');
+        }
+        
+        function toggleRawText(index) {
+            const rawText = document.getElementById(`raw-text-${index}`);
+            rawText.classList.toggle('visible');
+        }
+        
+        function updateInvoice(index, field, value) {
+            invoices[index][field] = value;
+        }
+        
+        function updateLineItem(invoiceIndex, itemIndex, field, value) {
+            if (!invoices[invoiceIndex].line_items) {
+                invoices[invoiceIndex].line_items = [];
+            }
+            if (!invoices[invoiceIndex].line_items[itemIndex]) {
+                invoices[invoiceIndex].line_items[itemIndex] = {};
+            }
+            invoices[invoiceIndex].line_items[itemIndex][field] = value;
+        }
+        
+        function addLineItem(invoiceIndex) {
+            if (!invoices[invoiceIndex].line_items) {
+                invoices[invoiceIndex].line_items = [];
+            }
+            invoices[invoiceIndex].line_items.push({
+                item: '',
+                description: '',
+                quantity: 1,
+                rate: '',
+                amount: ''
+            });
+            renderInvoices();
+            // Expand the invoice
+            document.getElementById(`invoice-body-${invoiceIndex}`).classList.add('expanded');
+        }
+        
+        function deleteLineItem(invoiceIndex, itemIndex) {
+            invoices[invoiceIndex].line_items.splice(itemIndex, 1);
+            renderInvoices();
+            document.getElementById(`invoice-body-${invoiceIndex}`).classList.add('expanded');
+        }
+        
+        function deleteInvoice(index) {
+            if (confirm('Are you sure you want to remove this invoice?')) {
+                invoices.splice(index, 1);
+                renderInvoices();
+            }
+        }
+        
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all invoices?')) {
+                invoices = [];
+                renderInvoices();
+                document.getElementById('previewSection').style.display = 'none';
+            }
+        }
+        
+        async function previewCSV() {
+            if (invoices.length === 0) {
+                showStatus('No invoices to convert', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ invoices })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    csvContent = result.csv;
+                    document.getElementById('csvPreview').querySelector('pre').textContent = csvContent;
+                    document.getElementById('previewSection').style.display = 'block';
+                    showStatus(`Generated ${result.row_count} CSV rows`, 'success');
+                } else {
+                    showStatus(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error generating CSV: ${error.message}`, 'error');
+            }
+        }
+        
+        async function downloadCSV() {
+            if (invoices.length === 0) {
+                showStatus('No invoices to download', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ invoices })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'quickbooks_invoices.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    showStatus('CSV downloaded successfully!', 'success');
+                } else {
+                    const result = await response.json();
+                    showStatus(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error downloading CSV: ${error.message}`, 'error');
+            }
+        }
+        
+        function copyCSV() {
+            navigator.clipboard.writeText(csvContent).then(() => {
+                showStatus('CSV copied to clipboard!', 'success');
+            }).catch(err => {
+                showStatus('Failed to copy to clipboard', 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusEl.className = 'status-message';
+                }, 3000);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

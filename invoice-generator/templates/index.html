@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Painting Ltd - Invoice Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2B4C7E 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .btn-settings {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .btn-settings:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .header {
+            position: relative;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #2B4C7E;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 1.3em;
+        }
+        
+        /* Upload Area */
+        .upload-area {
+            border: 3px dashed #2B4C7E;
+            border-radius: 15px;
+            padding: 50px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .upload-area:hover {
+            background: #e8f4fd;
+            border-color: #1a365d;
+        }
+        
+        .upload-area.dragover {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .upload-area .icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area p {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .upload-area small {
+            color: #888;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        /* Form styles */
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        .form-group.full {
+            flex: 100%;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #2B4C7E;
+        }
+        
+        input[readonly] {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        /* Line items */
+        .line-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            align-items: center;
+        }
+        
+        .line-item .description {
+            flex: 3;
+        }
+        
+        .line-item .amount {
+            flex: 1;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        /* Totals */
+        .totals-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 30px;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .totals-row label {
+            font-weight: bold;
+            width: 150px;
+            text-align: right;
+            margin: 0;
+        }
+        
+        .totals-row span {
+            width: 120px;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .totals-row.total {
+            font-size: 1.3em;
+            color: #2B4C7E;
+            padding-top: 10px;
+            border-top: 2px solid #2B4C7E;
+            margin-top: 10px;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        /* Sections visibility */
+        .hidden {
+            display: none;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #2B4C7E;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Result */
+        .result-section {
+            text-align: center;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        
+        .result-section.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        
+        .result-section.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+        }
+        
+        .download-link {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 15px 30px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: background 0.3s;
+        }
+        
+        .download-link:hover {
+            background: #218838;
+        }
+        
+        /* Invoice number display */
+        .invoice-number-box {
+            background: #e8f4fd;
+            border: 2px solid #2B4C7E;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .invoice-number-box .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .invoice-number-box .number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2B4C7E;
+        }
+        
+        /* Estimate info */
+        .estimate-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+        
+        .estimate-info strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Invoice Generator</h1>
+            <p>All Painting Ltd - Upload Estimate PDF → Generate Invoice</p>
+            <button class="btn-settings" onclick="toggleSettings()">⚙️ Settings</button>
+        </div>
+        
+        <!-- Settings Panel -->
+        <div class="card hidden" id="settingsPanel">
+            <h2>⚙️ Invoice Counter Settings</h2>
+            <div id="counterInfo" style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                Loading counter info...
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prefix to reset/set (e.g., 25R, 25C, 26C)</label>
+                    <input type="text" id="resetBaseNumber" placeholder="e.g., 25R" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>Set sequence to specific value</label>
+                    <input type="number" id="setSequence" placeholder="e.g., 0">
+                </div>
+            </div>
+            <div class="actions" style="justify-content: flex-start; gap: 10px;">
+                <button class="btn btn-secondary" onclick="resetSpecific()">Reset This Estimate</button>
+                <button class="btn btn-secondary" onclick="setSequence()">Set Sequence</button>
+                <button class="btn" style="background: #dc3545; color: white;" onclick="resetAll()">Reset ALL Counters</button>
+            </div>
+        </div>
+        
+        <!-- Step 1: Upload -->
+        <div class="card" id="uploadSection">
+            <h2>📤 Step 1: Upload Estimate PDF</h2>
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="icon">📋</div>
+                <p>Click or drag & drop your Estimate PDF here</p>
+                <small>The invoice will be generated from page 1 (Executive Summary)</small>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)">
+        </div>
+        
+        <!-- Loading -->
+        <div class="card hidden" id="loadingSection">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Extracting data from estimate...</p>
+            </div>
+        </div>
+        
+        <!-- Step 2: Review & Edit -->
+        <div class="card hidden" id="reviewSection">
+            <h2>✏️ Step 2: Review Extracted Data</h2>
+            
+            <div class="estimate-info">
+                <strong>Source Estimate:</strong> <span id="estimateNumber">-</span>
+            </div>
+            
+            <div class="invoice-number-box">
+                <div class="label">Next Invoice Number</div>
+                <div class="number" id="nextInvoiceNumber">-</div>
+            </div>
+            
+            <!-- Client Info -->
+            <h3 style="color: #2B4C7E; margin: 20px 0 15px; font-size: 1.1em;">Client Information</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" id="clientCompany">
+                </div>
+                <div class="form-group">
+                    <label>Contact</label>
+                    <input type="text" id="clientContact">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="clientAddress">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="clientPhone">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="text" id="clientEmail">
+                </div>
+            </div>
+            
+            <!-- Project Info -->
+            <h3 style="color: #2B4C7E; margin: 20px 0 15px; font-size: 1.1em;">Project Information</h3>
+            <div class="form-row">
+                <div class="form-group full">
+                    <label>Project Name</label>
+                    <input type="text" id="projectName">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group full">
+                    <label>Project Address</label>
+                    <input type="text" id="projectAddress">
+                </div>
+            </div>
+            
+            <!-- Line Items -->
+            <h3 style="color: #2B4C7E; margin: 20px 0 15px; font-size: 1.1em;">Scope Items (from Executive Summary)</h3>
+            <div id="lineItemsContainer">
+                <!-- Line items will be populated here -->
+            </div>
+            
+            <!-- Totals -->
+            <div class="totals-section">
+                <div class="totals-row">
+                    <label>Subtotal:</label>
+                    <span id="subtotalDisplay">$0.00</span>
+                </div>
+                <div class="totals-row">
+                    <label>GST (5%):</label>
+                    <span id="gstDisplay">$0.00</span>
+                </div>
+                <div class="totals-row total">
+                    <label>Total (incl. GST):</label>
+                    <span id="totalDisplay">$0.00</span>
+                </div>
+            </div>
+            
+            <!-- P.O. Number -->
+            <div class="form-row" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label>P.O. Number (optional)</label>
+                    <input type="text" id="poNumber" placeholder="(Approved by email)">
+                </div>
+                <div class="form-group">
+                    <label>Invoice Date</label>
+                    <input type="date" id="invoiceDate">
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button class="btn btn-primary" onclick="generateInvoice()">
+                    📄 Generate Invoice PDF
+                </button>
+                <button class="btn btn-secondary" onclick="resetForm()">
+                    🔄 Start Over
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Result -->
+        <div class="card hidden" id="resultSection">
+            <h2>✅ Step 3: Download Invoice</h2>
+            <div id="resultContent">
+                <!-- Result will be shown here -->
+            </div>
+            <div class="actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="resetForm()">
+                    📤 Generate Another Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let extractedData = {};
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default date to today
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+            
+            // Setup drag and drop
+            const uploadArea = document.getElementById('uploadArea');
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                    uploadFile(file);
+                } else {
+                    alert('Please upload a PDF file');
+                }
+            });
+        });
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        }
+        
+        async function uploadFile(file) {
+            // Show loading
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('loadingSection').classList.remove('hidden');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    extractedData = result.extracted_data;
+                    populateForm(extractedData);
+                    
+                    // Show review section
+                    document.getElementById('loadingSection').classList.add('hidden');
+                    document.getElementById('reviewSection').classList.remove('hidden');
+                } else {
+                    alert('Error: ' + result.error);
+                    resetForm();
+                }
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+                resetForm();
+            }
+        }
+        
+        function populateForm(data) {
+            // Estimate number
+            document.getElementById('estimateNumber').textContent = data.estimate_number || 'Unknown';
+            
+            // Calculate next invoice number preview
+            const prefix = data.estimate_prefix || '26C';
+            document.getElementById('nextInvoiceNumber').textContent = `${prefix}-XXX (next available)`;
+            
+            // Client info
+            document.getElementById('clientCompany').value = data.client_company || '';
+            document.getElementById('clientContact').value = data.client_contact || '';
+            document.getElementById('clientAddress').value = data.client_address || '';
+            document.getElementById('clientPhone').value = data.client_phone || '';
+            document.getElementById('clientEmail').value = data.client_email || '';
+            
+            // Project info
+            document.getElementById('projectName').value = data.project_name || '';
+            document.getElementById('projectAddress').value = data.project_address || '';
+            
+            // Line items
+            const container = document.getElementById('lineItemsContainer');
+            container.innerHTML = '';
+            
+            if (data.line_items && data.line_items.length > 0) {
+                data.line_items.forEach(item => {
+                    const itemHtml = `
+                        <div class="line-item">
+                            <div class="description">${item.description}</div>
+                            <div class="amount">$${parseFloat(item.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', itemHtml);
+                });
+            } else {
+                container.innerHTML = '<p style="color: #888; text-align: center;">No line items extracted</p>';
+            }
+            
+            // Update totals
+            updateTotals(data.subtotal || 0);
+        }
+        
+        function updateTotals(subtotal) {
+            const gst = subtotal * 0.05;
+            const total = subtotal + gst;
+            
+            document.getElementById('subtotalDisplay').textContent = `$${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('gstDisplay').textContent = `$${gst.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('totalDisplay').textContent = `$${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        
+        async function generateInvoice() {
+            // Collect form data
+            const dateInput = document.getElementById('invoiceDate').value;
+            const formattedDate = dateInput ? new Date(dateInput).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }) : '';
+            
+            const invoiceData = {
+                base_number: extractedData.base_number || 0,
+                estimate_number: extractedData.estimate_number || '',
+                estimate_prefix: extractedData.estimate_prefix || '',
+                client_company: document.getElementById('clientCompany').value,
+                client_contact: document.getElementById('clientContact').value,
+                client_address: document.getElementById('clientAddress').value,
+                client_phone: document.getElementById('clientPhone').value,
+                client_email: document.getElementById('clientEmail').value,
+                project_name: document.getElementById('projectName').value,
+                project_address: document.getElementById('projectAddress').value,
+                line_items: extractedData.line_items || [],
+                subtotal: extractedData.subtotal || 0,
+                po_number: document.getElementById('poNumber').value || '(Approved by email)',
+                date: formattedDate
+            };
+            
+            // Show loading
+            document.getElementById('reviewSection').classList.add('hidden');
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.querySelector('#loadingSection p').textContent = 'Generating invoice PDF...';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(invoiceData)
+                });
+                
+                const result = await response.json();
+                
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('resultSection').classList.remove('hidden');
+                
+                if (result.success) {
+                    document.getElementById('resultContent').innerHTML = `
+                        <div class="result-section success">
+                            <h3 style="margin-bottom: 15px;">🎉 Invoice Generated Successfully!</h3>
+                            <p style="font-size: 1.2em; margin-bottom: 10px;">
+                                <strong>Invoice Number:</strong> ${result.invoice_number}
+                            </p>
+                            <a href="/download/${encodeURIComponent(result.pdf_filename)}" class="download-link" download>
+                                📥 Download Invoice PDF
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('resultContent').innerHTML = `
+                        <div class="result-section error">
+                            <h3>❌ Error</h3>
+                            <p>${result.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('resultSection').classList.remove('hidden');
+                document.getElementById('resultContent').innerHTML = `
+                    <div class="result-section error">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function resetForm() {
+            // Reset everything
+            extractedData = {};
+            document.getElementById('fileInput').value = '';
+            
+            // Show upload, hide others
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('loadingSection').classList.add('hidden');
+            document.getElementById('reviewSection').classList.add('hidden');
+            document.getElementById('resultSection').classList.add('hidden');
+            
+            // Reset loading text
+            document.querySelector('#loadingSection p').textContent = 'Extracting data from estimate...';
+        }
+        
+        // Settings Panel Functions
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                loadCounterInfo();
+            }
+        }
+        
+        async function loadCounterInfo() {
+            try {
+                const response = await fetch('/api/counter');
+                const counter = await response.json();
+                
+                let html = '<strong>Current Invoice Sequences:</strong><br><br>';
+                
+                const sequences = counter.sequences || {};
+                if (Object.keys(sequences).length === 0) {
+                    html += '<em>No invoices generated yet</em>';
+                } else {
+                    for (const [prefix, seq] of Object.entries(sequences)) {
+                        html += `• <strong>${prefix}</strong>: Last invoice was ${prefix}-${String(seq).padStart(3, '0')}, next will be ${prefix}-${String(seq + 1).padStart(3, '0')}<br>`;
+                    }
+                }
+                
+                document.getElementById('counterInfo').innerHTML = html;
+            } catch (error) {
+                document.getElementById('counterInfo').innerHTML = 'Error loading counter: ' + error.message;
+            }
+        }
+        
+        async function resetSpecific() {
+            const prefix = document.getElementById('resetBaseNumber').value.toUpperCase();
+            if (!prefix) {
+                alert('Please enter a prefix to reset (e.g., 25R, 25C, 26C)');
+                return;
+            }
+            
+            if (!confirm(`Reset invoice sequence for ${prefix}? Next invoice will be ${prefix}-001.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/counter/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prefix: prefix })
+                });
+                const result = await response.json();
+                alert(result.message);
+                loadCounterInfo();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function setSequence() {
+            const prefix = document.getElementById('resetBaseNumber').value.toUpperCase();
+            const sequence = document.getElementById('setSequence').value;
+            
+            if (!prefix) {
+                alert('Please enter a prefix (e.g., 25R, 25C, 26C)');
+                return;
+            }
+            
+            const seqNum = parseInt(sequence) || 0;
+            if (!confirm(`Set ${prefix} sequence to ${seqNum}? Next invoice will be ${prefix}-${String(seqNum + 1).padStart(3, '0')}.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/counter/set', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prefix: prefix, sequence: seqNum })
+                });
+                const result = await response.json();
+                alert(result.message);
+                loadCounterInfo();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function resetAll() {
+            if (!confirm('⚠️ WARNING: This will reset ALL invoice sequences! Are you sure?')) {
+                return;
+            }
+            if (!confirm('This cannot be undone. Really reset ALL counters?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/counter/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                alert(result.message);
+                loadCounterInfo();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Upload Results{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Processing Results</h2>
+        <a href="{{ url_for('upload') }}" class="btn btn-outline">Upload More</a>
+    </div>
+    <div class="card-body">
+        {% for result in results %}
+        <div style="background: {% if result.success %}var(--gray-50){% else %}#fee2e2{% endif %}; 
+                    padding: 25px; 
+                    border-radius: 12px; 
+                    margin-bottom: 20px;
+                    border-left: 4px solid {% if result.success %}var(--accent){% else %}var(--danger){% endif %};">
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <div>
+                    <h3 style="margin-bottom: 5px;">
+                        {% if result.success %}✅{% else %}❌{% endif %}
+                        {{ result.filename }}
+                    </h3>
+                    {% if result.error %}
+                    <p style="color: var(--danger);">{{ result.error }}</p>
+                    {% endif %}
+                </div>
+                
+                {% if result.success %}
+                <span class="badge badge-sent">Extracted</span>
+                {% else %}
+                <span class="badge badge-error">Failed</span>
+                {% endif %}
+            </div>
+            
+            {% if result.success and result.data %}
+            <div class="grid-2" style="gap: 30px;">
+                <div>
+                    <h4 style="color: var(--gray-600); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">
+                        Employee Information
+                    </h4>
+                    <table style="font-size: 14px;">
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Name:</td>
+                            <td style="padding: 8px 0; font-weight: 600;">{{ result.data.employee_name }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Employee Code:</td>
+                            <td style="padding: 8px 0;">{{ result.data.employee_code or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Pay Date:</td>
+                            <td style="padding: 8px 0;">{{ result.data.pay_date or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Pay Period:</td>
+                            <td style="padding: 8px 0;">{{ result.data.pay_period or 'N/A' }}</td>
+                        </tr>
+                    </table>
+                    
+                    {% if result.employee and not result.employee.etransfer_email %}
+                    <div class="alert alert-warning" style="margin-top: 15px;">
+                        ⚠️ No e-Transfer email set for this employee. 
+                        <a href="{{ url_for('employee_detail', id=result.employee.id) }}">Add now</a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div>
+                    <h4 style="color: var(--gray-600); margin-bottom: 15px; font-size: 14px; text-transform: uppercase;">
+                        Payment Details
+                    </h4>
+                    <table style="font-size: 14px;">
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Regular Hours:</td>
+                            <td style="padding: 8px 0;">{{ result.data.regular_hours or 0 }} hrs</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Overtime Hours:</td>
+                            <td style="padding: 8px 0;">{{ result.data.overtime_hours or 0 }} hrs</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Stat Hours:</td>
+                            <td style="padding: 8px 0;">{{ result.data.stat_hours or 0 }} hrs</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Gross Pay:</td>
+                            <td style="padding: 8px 0;">${{ '{:,.2f}'.format(result.data.gross_pay or 0) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 15px 8px 0; color: var(--gray-500);">Deductions:</td>
+                            <td style="padding: 8px 0; color: var(--danger);">-${{ '{:,.2f}'.format(result.data.total_deductions or 0) }}</td>
+                        </tr>
+                        <tr style="background: white; border-radius: 8px;">
+                            <td style="padding: 12px 15px 12px 0; font-weight: 600;">NET PAY:</td>
+                            <td style="padding: 12px 0;">
+                                <span class="amount" style="font-size: 24px; color: var(--accent);">
+                                    ${{ '{:,.2f}'.format(result.data.net_pay) }}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    {% if result.previous %}
+                    <div style="margin-top: 15px; padding: 12px; background: white; border-radius: 8px;">
+                        <span style="font-size: 13px; color: var(--gray-500);">Compared to last period:</span>
+                        {% set change = result.data.net_pay - result.previous.net_pay %}
+                        <span class="change {% if change > 0 %}change-up{% else %}change-down{% endif %}" style="margin-left: 10px;">
+                            {% if change > 0 %}↑{% else %}↓{% endif %}
+                            ${{ '{:,.2f}'.format(change|abs) }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                📊 Go to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

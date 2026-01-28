@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-label">Pending Payments</div>
+        <div class="stat-value">{{ stats.pending_count }}</div>
+        <div class="stat-sub">${{ '{:,.2f}'.format(stats.pending_total) }} total</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-label">This Month</div>
+        <div class="stat-value">${{ '{:,.0f}'.format(stats.this_month_total) }}</div>
+        <div class="stat-sub">Paid out</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Year to Date</div>
+        <div class="stat-value">${{ '{:,.0f}'.format(stats.this_year_total) }}</div>
+        <div class="stat-sub">Total payroll 2026</div>
+    </div>
+</div>
+
+{% if pending %}
+<div class="card" style="margin-bottom: 30px;">
+    <div class="card-header">
+        <h2>🔔 Pending Payments</h2>
+        <div style="display: flex; gap: 10px;">
+            <a href="https://easyweb.td.com" target="_blank" class="btn btn-success btn-lg">
+                🏦 Open TD EasyWeb
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--gray-600); margin-bottom: 20px;">
+            Click the copy buttons below to copy each value, then paste into TD's e-Transfer form.
+        </p>
+        
+        {% for payment in pending %}
+        <div class="payment-card" id="payment-{{ payment.id }}" style="background: var(--gray-50); border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid var(--primary);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div>
+                    <h3 style="margin: 0; color: var(--primary);">{{ payment.employee_name }}</h3>
+                    <p style="color: var(--gray-500); font-size: 14px; margin-top: 5px;">{{ payment.pay_period or 'N/A' }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge badge-pending" id="status-{{ payment.id }}">Pending</span>
+                </div>
+            </div>
+            
+            <div class="copy-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <!-- Email -->
+                <div class="copy-item">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">EMAIL</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" value="{{ payment.etransfer_email or 'NO EMAIL SET' }}" readonly 
+                               style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; background: white;">
+                        {% if payment.etransfer_email %}
+                        <button class="btn btn-outline copy-btn" onclick="copyToClipboard('{{ payment.etransfer_email }}', this)" style="padding: 10px 15px;">
+                            📋 Copy
+                        </button>
+                        {% else %}
+                        <a href="{{ url_for('employee_detail', id=payment.employee_id) }}" class="btn btn-warning" style="padding: 10px 15px;">
+                            ⚠️ Add
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Amount -->
+                <div class="copy-item">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">AMOUNT</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" value="{{ '{:.2f}'.format(payment.net_pay) }}" readonly 
+                               style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; font-weight: bold; background: white;">
+                        <button class="btn btn-outline copy-btn" onclick="copyToClipboard('{{ '{:.2f}'.format(payment.net_pay) }}', this)" style="padding: 10px 15px;">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Message -->
+                <div class="copy-item" style="grid-column: span 2;">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">MESSAGE</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" value="All Painting Ltd - Payroll {{ payment.pay_period or '' }}" readonly 
+                               style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; background: white;">
+                        <button class="btn btn-outline copy-btn" onclick="copyToClipboard('All Painting Ltd - Payroll {{ payment.pay_period or '' }}', this)" style="padding: 10px 15px;">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Security Question (if not auto-deposit) -->
+                {% if not payment.auto_deposit %}
+                <div class="copy-item">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">SECURITY QUESTION</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" value="{{ payment.security_question or 'What company is this payment from?' }}" readonly 
+                               style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; background: white;">
+                        <button class="btn btn-outline copy-btn" onclick="copyToClipboard('{{ payment.security_question or 'What company is this payment from?' }}', this)" style="padding: 10px 15px;">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="copy-item">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">SECURITY ANSWER</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" value="{{ payment.security_answer or 'allpainting' }}" readonly 
+                               style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; background: white;">
+                        <button class="btn btn-outline copy-btn" onclick="copyToClipboard('{{ payment.security_answer or 'allpainting' }}', this)" style="padding: 10px 15px;">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <div class="copy-item" style="grid-column: span 2;">
+                    <label style="font-size: 12px; color: var(--gray-500); display: block; margin-bottom: 5px;">SECURITY</label>
+                    <div style="padding: 10px; background: #ecfdf5; border-radius: 6px; color: var(--accent);">
+                        ✓ Auto-deposit enabled - no security question needed
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Actions -->
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--gray-200); padding-top: 15px;">
+                <button class="btn btn-danger" onclick="deletePayment({{ payment.id }}, '{{ payment.employee_name }}')" style="padding: 8px 15px;">
+                    🗑️ Delete
+                </button>
+                <button class="btn btn-success" onclick="markAsSent({{ payment.id }}, '{{ payment.employee_name }}', {{ payment.net_pay }})" style="padding: 8px 20px;">
+                    ✓ Mark as Sent
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Summary -->
+        <div style="background: var(--primary); color: white; padding: 20px; border-radius: 12px; margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0;">Total Pending</h3>
+                    <p style="margin: 5px 0 0 0; opacity: 0.8;">{{ pending|length }} payments</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-size: 32px; font-weight: bold; margin: 0;">${{ '{:,.2f}'.format(stats.pending_total) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card" style="margin-bottom: 30px;">
+    <div class="card-body" style="text-align: center; padding: 60px;">
+        <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+        <h3 style="color: var(--gray-600); margin-bottom: 10px;">No Pending Payments</h3>
+        <p style="color: var(--gray-500);">Upload payroll PDFs to process new payments</p>
+        <a href="{{ url_for('upload') }}" class="btn btn-primary" style="margin-top: 20px;">
+            📤 Upload Payroll Files
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if recent %}
+<div class="card">
+    <div class="card-header">
+        <h2>📜 Recent Payments</h2>
+        <a href="{{ url_for('history') }}" class="btn btn-outline">View All History</a>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Amount</th>
+                        <th>Pay Date</th>
+                        <th>Sent</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in recent %}
+                    <tr>
+                        <td>{{ payment.employee_name }}</td>
+                        <td><span class="amount">${{ '{:,.2f}'.format(payment.net_pay) }}</span></td>
+                        <td>{{ payment.pay_date or 'N/A' }}</td>
+                        <td>{{ payment.sent_at[:10] if payment.sent_at else 'N/A' }}</td>
+                        <td><span class="badge badge-sent">Sent</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Toast notification -->
+<div id="toast" style="position: fixed; bottom: 30px; right: 30px; background: var(--accent); color: white; padding: 15px 25px; border-radius: 8px; display: none; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <span id="toastMessage">Copied!</span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show feedback on button
+        const originalText = button.innerHTML;
+        button.innerHTML = '✓ Copied!';
+        button.style.background = 'var(--accent)';
+        button.style.color = 'white';
+        button.style.borderColor = 'var(--accent)';
+        
+        // Show toast
+        showToast('Copied: ' + text);
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.style.background = '';
+            button.style.color = '';
+            button.style.borderColor = '';
+        }, 1500);
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        alert('Copy failed. Please select and copy manually.');
+    });
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMessage').textContent = message;
+    toast.style.display = 'block';
+    
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 2000);
+}
+
+function markAsSent(paymentId, employeeName, amount) {
+    if (confirm(`Mark payment as SENT?\n\n${employeeName}: $${amount.toFixed(2)}\n\nOnly click this after you have sent the e-Transfer in TD.`)) {
+        fetch('/mark_single_sent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_id: paymentId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI
+                const card = document.getElementById('payment-' + paymentId);
+                card.style.borderLeftColor = 'var(--accent)';
+                card.style.opacity = '0.6';
+                
+                const status = document.getElementById('status-' + paymentId);
+                status.textContent = 'Sent';
+                status.className = 'badge badge-sent';
+                
+                showToast('✓ Payment marked as sent!');
+                
+                // Reload after short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error marking payment');
+        });
+    }
+}
+
+function deletePayment(paymentId, employeeName) {
+    if (confirm(`Delete pending payment for ${employeeName}?\n\nThis cannot be undone.`)) {
+        fetch('/delete_payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_id: paymentId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error deleting payment');
+        });
+    }
+}
+</script>
+{% endblock %}

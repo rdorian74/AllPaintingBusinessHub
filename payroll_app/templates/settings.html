@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h2>⚙️ Application Settings</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <h3 style="font-size: 16px; color: var(--gray-700); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200);">
+                    Security Questions
+                </h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Default Security Question</label>
+                    <input type="text" name="default_security_question" class="form-input"
+                           value="{{ settings.default_security_question or '' }}"
+                           placeholder="What company is this payment from?">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-top: 5px;">
+                        Used when employee doesn't have a custom question set
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Default Security Answer</label>
+                    <input type="text" name="default_security_answer" class="form-input"
+                           value="{{ settings.default_security_answer or '' }}"
+                           placeholder="allpainting">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-top: 5px;">
+                        Case-insensitive answer for the default question
+                    </p>
+                </div>
+                
+                <h3 style="font-size: 16px; color: var(--gray-700); margin: 30px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200);">
+                    TD Bank Settings
+                </h3>
+                
+                <div class="form-group">
+                    <label class="form-label">TD Account Name</label>
+                    <input type="text" name="td_account_name" class="form-input"
+                           value="{{ settings.td_account_name or '' }}"
+                           placeholder="Business Chequing">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-top: 5px;">
+                        Account to send e-Transfers from (for reference)
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Payment Message Template</label>
+                    <input type="text" name="message_template" class="form-input"
+                           value="{{ settings.message_template or '' }}"
+                           placeholder="All Painting Ltd - Payroll {period}">
+                    <p style="font-size: 12px; color: var(--gray-500); margin-top: 5px;">
+                        Use {period} to insert the pay period automatically
+                    </p>
+                </div>
+                
+                <h3 style="font-size: 16px; color: var(--gray-700); margin: 30px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--gray-200);">
+                    Notifications
+                </h3>
+                
+                <div class="form-group">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" name="email_notifications" value="1"
+                               {% if settings.email_notifications == '1' %}checked{% endif %}>
+                        <span>Send email summary after payroll is completed</span>
+                    </label>
+                    <p style="font-size: 12px; color: var(--gray-500); margin-top: 10px; margin-left: 28px;">
+                        Sends to: <strong>info@allpaintingltd.com</strong>
+                    </p>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div>
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+                <h2>📧 Email Integration</h2>
+            </div>
+            <div class="card-body">
+                <div style="background: var(--gray-50); padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                    <p style="font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">
+                        <strong>Payroll Source Email:</strong>
+                    </p>
+                    <p style="font-family: monospace; color: var(--primary); font-size: 16px;">
+                        thirtyeight00@gmail.com
+                    </p>
+                    <p style="font-size: 13px; color: var(--gray-500); margin-top: 10px;">
+                        Files from Eileen Law are automatically recognized
+                    </p>
+                </div>
+                
+                <div style="background: var(--gray-50); padding: 20px; border-radius: 8px;">
+                    <p style="font-size: 14px; color: var(--gray-600); margin-bottom: 8px;">
+                        <strong>Notification Email:</strong>
+                    </p>
+                    <p style="font-family: monospace; color: var(--primary); font-size: 16px;">
+                        info@allpaintingltd.com
+                    </p>
+                    <p style="font-size: 13px; color: var(--gray-500); margin-top: 10px;">
+                        Receives payroll completion summaries
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2>ℹ️ System Information</h2>
+            </div>
+            <div class="card-body">
+                <table style="width: 100%; font-size: 14px;">
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Version:</td>
+                        <td style="padding: 10px 0;">1.0.0</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Database:</td>
+                        <td style="padding: 10px 0;">SQLite (local)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">AI Model:</td>
+                        <td style="padding: 10px 0;">Claude Sonnet</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Browser Automation:</td>
+                        <td style="padding: 10px 0;">Selenium/Playwright</td>
+                    </tr>
+                </table>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--gray-200);">
+                    <p style="font-size: 13px; color: var(--gray-500);">
+                        Built for All Painting Ltd by Claude AI<br>
+                        © 2026 All Painting Ltd
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

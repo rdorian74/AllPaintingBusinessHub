@@ -1,0 +1,742 @@
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+import os
+import json
+import subprocess
+from datetime import datetime
+import re
+from weasyprint import HTML, CSS
+import tempfile
+
+app = Flask(__name__, static_folder='static')
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir() + '/uploads'
+app.config['OUTPUT_FOLDER'] = tempfile.gettempdir() + '/outputs'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+
+# Check if logo exists
+LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'logo.png')
+HAS_LOGO = os.path.exists(LOGO_PATH)
+
+def safe_float(value, default=0.0):
+    """Safely convert a value to float"""
+    if value is None or value == '':
+        return default
+    try:
+        if isinstance(value, str):
+            value = value.replace('$', '').replace(',', '').strip()
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def extract_text_from_doc(file_path):
+    """Extract text from .doc or .docx files"""
+    text = ""
+    
+    try:
+        from docx import Document
+        doc = Document(file_path)
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        text = '\n'.join(paragraphs)
+        if text and len(text) > 100:
+            print(f"✅ Extracted {len(text)} characters using python-docx")
+            return text
+    except Exception as e:
+        print(f"python-docx failed: {e}")
+    
+    try:
+        import docx2txt
+        text = docx2txt.process(file_path)
+        if text and len(text) > 100:
+            print(f"✅ Extracted {len(text)} characters using docx2txt")
+            return text
+    except Exception as e:
+        print(f"docx2txt failed: {e}")
+    
+    try:
+        result = subprocess.run(['antiword', file_path], capture_output=True, text=True, check=True)
+        text = result.stdout
+        if text and len(text) > 100:
+            print(f"✅ Extracted {len(text)} characters using antiword")
+            return text
+    except Exception as e:
+        print(f"antiword failed: {e}")
+    
+    return text if text else "Error: Could not extract text from document"
+
+def call_claude_for_extraction(document_text):
+    """Use Claude AI to extract structured data from the document"""
+    import anthropic
+    
+    client = anthropic.Anthropic()
+    
+    extraction_prompt = f"""You are an expert at extracting information from painting estimate documents. 
+
+DOCUMENT TEXT:
+{document_text}
+
+Extract ALL information and return it as JSON. Be VERY thorough - extract every detail.
+
+CRITICAL RULES:
+1. Extract ALL dollar amounts - look for patterns like $27,746.14 or 27746.14
+2. Extract ALL scope items (Interior Painting, Exterior Painting, etc.)
+3. For amounts, return ONLY the number without $ or commas (example: "27746.14" not "$27,746.14")
+4. If you cannot find a value, use an empty string "" not null
+5. Extract the complete estimate number (like "25C-285-A" or "OUR ESTIMATE # 25C-285-A")
+6. Extract the complete client name and company
+7. Extract ALL painting specifications and details
+8. GRAMMAR & SPELLING: Fix any grammar or spelling errors in the extracted text, BUT preserve the original meaning and technical content
+9. Capitalize the first letter of every sentence and bullet point
+10. Ensure proper punctuation throughout
+11. ADDENDUM EXTRACTION: Look for text like "Addendum 1", "Addendum 2", "Addendum #3", etc. Extract the highest addendum number found. If NO addendum is found, return "No addendums"
+12. REVISED EXTRACTION: Look for text like "Revised 1", "Revised 2", "Revision 3", etc. Extract the revision information if found
+
+SMART CONTACT EXTRACTION RULES:
+13. PHONE NUMBER: Look for patterns like (604) 123-4567, 604-123-4567, 604.123.4567, or 6041234567. Also look after keywords: "Phone:", "Tel:", "Cell:", "Mobile:". Extract the COMPLETE phone number.
+14. EMAIL: Look for text with @ symbol. Also look after keywords: "Email:", "E-mail:", "Mail:". Extract the COMPLETE email address. IMPORTANT: Extract the company name from the email domain if no explicit company name is found (e.g., richard@titanconstruction.net means company is likely "Titan Construction").
+15. CONTACT PERSON: Look for text after "Attention:", "Attn:", "Contact:", "For:", or first person name mentioned near address. This is the PERSON'S NAME, not the company.
+16. COMPANY NAME: CRITICAL - This must be the BUSINESS/ORGANIZATION name, NOT the contact person's name. Look for: business names ending in Ltd, Inc, Corp, LLC, Construction, Contracting, Development, etc. Check the email domain for company hints. If truly no company name found, ONLY then use contact person name.
+17. ADDRESS COMBINATION: Build complete addresses intelligently by combining street, city, province, and postal code fields. Ensure proper formatting with commas.
+
+Return ONLY this JSON structure with NO markdown formatting, NO backticks:
+
+{{
+    "client_info": {{
+        "company_name": "",
+        "contact_person": "",
+        "address": "",
+        "city_province_postal": "",
+        "phone": "",
+        "email": ""
+    }},
+    "project_info": {{
+        "name": "",
+        "address": "",
+        "city_province_postal": ""
+    }},
+    "estimate_number": "",
+    "date": "",
+    "addendum_count": "",
+    "revised": "",
+    "scopes": [
+        {{
+            "scope_number": "1",
+            "title": "Interior Painting",
+            "description": "Brief summary of interior work",
+            "amount": "27746.14"
+        }},
+        {{
+            "scope_number": "2",
+            "title": "Exterior Painting", 
+            "description": "Brief summary of exterior work",
+            "amount": "6560.56"
+        }}
+    ],
+    "scope_details": [
+        {{
+            "scope_id": "1",
+            "scope_title": "INTERIOR PAINTING",
+            "items": [
+                "List every single painting specification here - WITH PROPER CAPITALIZATION",
+                "Include primer types, paint types, colors, surfaces",
+                "Each item should start with a capital letter and have proper grammar"
+            ]
+        }},
+        {{
+            "scope_id": "2",
+            "scope_title": "EXTERIOR PAINTING",
+            "items": [
+                "List exterior specifications with proper grammar and capitalization"
+            ]
+        }}
+    ],
+    "important_notes": [
+        "Extract ALL notes with proper capitalization and grammar",
+        "Each bullet point should be a complete, properly formatted sentence"
+    ],
+    "standard_inclusions": [
+        "Ladding and lifting supplies as painted areas",
+        "Protection of all non-painted areas",
+        "Extract ALL inclusions with proper grammar"
+    ],
+    "exclusions": [
+        "MPI inspection and MPI warranty not included",
+        "Painting of any other areas not listed",
+        "Extract ALL exclusions with proper capitalization"
+    ],
+    "warranty_info": {{
+        "years": "2",
+        "description": "Two Year Limited Warranty on Material and Workmanship"
+    }},
+    "credentials": [
+        "Five Million Liability Insurance",
+        "WCB Coverage",
+        "Better Business Bureau Member"
+    ],
+    "payment_terms": [
+        "Progress payments as necessary",
+        "Payment on completion"
+    ],
+    "validity_days": "30"
+}}
+
+REMEMBER: 
+- Return PURE JSON only. No ```json or ``` markers
+- Extract EVERYTHING from the document
+- Fix grammar and spelling while preserving meaning
+- Capitalize properly
+- Make it professional"""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=8000,
+        messages=[{"role": "user", "content": extraction_prompt}]
+    )
+    
+    response_text = message.content[0].text.strip()
+    response_text = re.sub(r'^```json\s*', '', response_text)
+    response_text = re.sub(r'^```\s*', '', response_text)
+    response_text = re.sub(r'\s*```$', '', response_text)
+    response_text = response_text.strip()
+    
+    try:
+        data = json.loads(response_text)
+        
+        if 'scopes' in data:
+            for scope in data['scopes']:
+                if 'amount' in scope:
+                    amount_str = str(scope['amount']).replace('$', '').replace(',', '').strip()
+                    scope['amount'] = amount_str if amount_str else "0"
+        
+        print("✅ Successfully extracted data")
+        print(f"Found {len(data.get('scopes', []))} scopes")
+        return data
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON decode error: {e}")
+        print(f"Response (first 500 chars): {response_text[:500]}")
+        raise
+
+def call_claude_for_formatting(extracted_data):
+    """Use Claude AI to create a professional HTML estimate"""
+    import anthropic
+    
+    client = anthropic.Anthropic()
+    
+    scopes = extracted_data.get('scopes', [])
+    subtotal = sum(safe_float(scope.get('amount', 0)) for scope in scopes)
+    gst = subtotal * 0.05
+    total = subtotal + gst
+    
+    print(f"💰 Calculated totals - Subtotal: ${subtotal:,.2f}, GST: ${gst:,.2f}, Total: ${total:,.2f}")
+    
+    if not extracted_data.get('date'):
+        extracted_data['date'] = datetime.now().strftime('%B %d, %Y')
+    
+    # Prepare logo tag for header
+    logo_html = ""
+    if HAS_LOGO:
+        logo_html = f'<div style="background: white; border-radius: 8px; padding: 5pt; margin-right: 15pt;"><img src="file://{LOGO_PATH}" style="height: 55px; width: auto; display: block;"></div>'
+        print(f"✅ Logo will be included from: {LOGO_PATH}")
+    else:
+        logo_html = ""
+        print("⚠️  No logo - PDFs will be generated without logo")
+    
+    formatting_prompt = f"""Create a professional HTML estimate document with PERFECT formatting.
+
+⚠️ CRITICAL HTML REQUIREMENTS - READ FIRST:
+1. Use ONLY inline styles (style="...") - NO external CSS classes
+2. Use proper HTML <div>, <table>, <ul>, <li> tags - NOT bullet characters •
+3. COPY the exact HTML templates provided - do not simplify or modify them
+4. border-radius MUST be included on all rounded elements
+5. All styles MUST be inline within the HTML tags
+
+DATA:
+{json.dumps(extracted_data, indent=2)}
+
+TOTALS:
+Subtotal: ${subtotal:,.2f}
+GST (5%): ${gst:,.2f}
+Total: ${total:,.2f}
+
+TYPOGRAPHY STANDARDS (USE EVERYWHERE):
+- Font Family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif
+- Body Text: 11pt
+- Headings (H1): 18pt bold
+- Headings (H2): 14pt bold  
+- Section Headers: 12pt bold
+- Table Headers: 11pt bold
+- Small Text (footer, labels): 9pt
+- Line Height: 1.35 for body text, 1.2 for headers
+- Color: #333333 for body text, #2B4C7E for navy elements
+
+SMART PAGE BREAK CONTROL (OPTION 3 - HYBRID):
+- SHORT sections (Client Info, Warranty, Payment Terms): NEVER break - use page-break-inside: avoid !important;
+- LONG sections (Detailed Scope with many bullets): ALLOW breaks but keep header with first few items
+- Headers: ALWAYS keep with content using page-break-after: avoid !important; and orphans: 3;
+- Reduce spacing: margin-bottom: 15pt (instead of 20pt) for better space utilization
+- Tables: page-break-inside: avoid !important;
+
+DESIGN SPECIFICATION:
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {{
+            size: letter;
+            margin: 0.5in 0.5in 1.2in 0.5in;
+            @bottom-center {{
+                content: element(footer);
+            }}
+            @bottom-right {{
+                content: "Page " counter(page);
+                font-size: 10pt;
+                color: #666;
+            }}
+        }}
+        
+        #footer {{
+            position: running(footer);
+            width: 100%;
+        }}
+        
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.35;
+            color: #333333;
+        }}
+        
+        .no-break {{
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }}
+        
+        h1 {{
+            font-size: 18pt;
+            font-weight: bold;
+            margin-bottom: 8pt;
+            page-break-after: avoid !important;
+            orphans: 3;
+            widows: 3;
+        }}
+        
+        h2 {{
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 8pt;
+            page-break-after: avoid !important;
+            orphans: 3;
+            widows: 3;
+        }}
+        
+        .section {{
+            margin-bottom: 12pt;
+        }}
+        
+        .section-header {{
+            page-break-after: avoid !important;
+            orphans: 3;
+        }}
+        
+        table {{
+            page-break-inside: avoid !important;
+        }}
+        
+        ul, ol {{
+            padding-left: 25pt !important;
+            list-style-position: outside;
+        }}
+        
+        li {{
+            padding-left: 5pt;
+            margin-bottom: 3pt;
+            orphans: 2;
+            widows: 2;
+        }}
+    </style>
+</head>
+<body>
+
+1. HEADER - COPY THIS EXACT TEMPLATE:
+
+```html
+<div style="background: linear-gradient(135deg, #2B4C7E 0%, #567EBB 100%); color: white; padding: 20pt; border-radius: 10px; margin-bottom: 12pt; page-break-inside: avoid !important; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12pt;">
+        <div style="display: flex; align-items: center;">
+            {logo_html}
+            <div>
+                <div style="font-size: 20pt; font-weight: bold;">ALL PAINTING LTD.</div>
+                <div style="font-size: 10pt;">Your Full-Service Painting Company</div>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 18pt; font-weight: bold; margin-bottom: 4pt;">ESTIMATE</div>
+            <div style="font-size: 11pt;">Estimate #: {extracted_data.get('estimate_number', 'TBD')}</div>
+            <div style="font-size: 11pt;">Date: {extracted_data.get('date', '')}</div>
+            <div style="font-size: 11pt;">Addendum: {extracted_data.get('addendum_count', 'No addendums')}</div>
+            <div style="font-size: 11pt;">Valid for: {extracted_data.get('validity_days', '30')} days</div>
+        </div>
+    </div>
+    <div style="text-align: center; font-size: 11pt; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8pt;">
+        Phone: (604) 330-1443 & (604) 525-1403 | Email: info@allpaintingltd.ca | Website: www.allpaintingltd.ca
+    </div>
+</div>
+```
+
+NOTE: The logo HTML is: {logo_html}
+If no logo is available, the logo area will be empty and only the text will show.
+
+SMART CONTACT EXTRACTION RULES (use throughout document):
+- Look for phone patterns: (604) 123-4567, 604-123-4567, 604.123.4567, or 6041234567
+- Look for email with @ symbol anywhere in document
+- If contact person missing, look for "Attention:", "Attn:", "Contact:", or first name found
+- If company name empty, use contact person name
+- Build addresses intelligently: [street], [city], [province] [postal]
+
+2. CLIENT & PROJECT INFO - COPY THIS EXACT TEMPLATE:
+
+```html
+<div style="display: flex; gap: 12pt; margin-bottom: 12pt; page-break-inside: avoid !important;">
+    <div style="flex: 1; border: 3px solid #2B4C7E; border-radius: 10px; padding: 12pt; background: white;">
+        <div style="font-size: 12pt; font-weight: bold; color: #2B4C7E; margin-bottom: 8pt; border-bottom: 2px solid #2B4C7E; padding-bottom: 4pt;">CLIENT INFORMATION</div>
+        <div style="font-size: 11pt; line-height: 1.4;">
+            <div style="margin-bottom: 2pt;"><strong>Company:</strong> [Use company_name from data - must be a BUSINESS name, not personal name]</div>
+            <div style="margin-bottom: 2pt;"><strong>Contact:</strong> [contact_person from data - person's name]</div>
+            <div style="margin-bottom: 2pt;"><strong>Phone:</strong> [phone from data]</div>
+            <div style="margin-bottom: 2pt;"><strong>Email:</strong> [email from data]</div>
+        </div>
+    </div>
+    <div style="flex: 1; border: 3px solid #2B4C7E; border-radius: 10px; padding: 12pt; background: white;">
+        <div style="font-size: 12pt; font-weight: bold; color: #2B4C7E; margin-bottom: 8pt; border-bottom: 2px solid #2B4C7E; padding-bottom: 4pt;">PROJECT LOCATION</div>
+        <div style="font-size: 11pt; line-height: 1.4;">
+            <div style="margin-bottom: 2pt;"><strong>Project:</strong> [project name from data]</div>
+            <div style="margin-bottom: 2pt;"><strong>Address:</strong> [project address and city_province_postal from data]</div>
+        </div>
+    </div>
+</div>
+```
+
+Insert actual data values from extracted_data in place of [bracketed placeholders].
+
+3. EXECUTIVE SUMMARY (NEVER BREAK - class="section no-break", page-break-inside: avoid !important; margin-bottom: 12pt):
+   - "EXECUTIVE SUMMARY" header (14pt bold, color #2B4C7E)
+   - Table with borders (page-break-inside: avoid !important)
+   - Header row: Scope | Description | Amount (11pt bold, background #F5F5F5)
+   - Data rows (11pt)
+   - Right-align amounts
+   - SUBTOTAL (navy #2B4C7E, white 11pt bold): ${subtotal:,.2f}
+   - GST (5%) (11pt): ${gst:,.2f}
+   - TOTAL (navy #2B4C7E, white 12pt bold): ${total:,.2f}
+
+4. GENERAL TERMS & CONDITIONS (NEVER BREAK - class="section no-break", page-break-inside: avoid !important; break-inside: avoid !important):
+   
+   EXACT CSS TEMPLATE:
+   ```
+   <div class="terms-section" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12pt;">
+       <div style="background: #8B0000; color: white; font-size: 12pt; font-weight: bold; padding: 10pt; border-radius: 8px 8px 0 0; page-break-after: avoid !important;">
+           GENERAL TERMS & CONDITIONS
+       </div>
+       <div style="border: 3px solid #F0E68C; border-top: none; border-radius: 0 0 8px 8px; padding: 10pt; background: #FFF9E6;">
+           <ul style="margin: 0; padding-left: 25pt !important; list-style-type: disc; line-height: 1.35; list-style-position: outside;">
+               <li style="font-size: 11pt; padding-left: 5pt; margin-bottom: 3pt;">Item 1</li>
+               <li style="font-size: 11pt; padding-left: 5pt; margin-bottom: 3pt;">Item 2</li>
+           </ul>
+       </div>
+   </div>
+   ```
+
+5. STANDARD INCLUSIONS (ALLOW BREAKS IF LONG - class="section", margin-bottom: 12pt):
+   
+   EXACT CSS TEMPLATE:
+   ```
+   <div class="inclusions-section" style="margin-bottom: 12pt;">
+       <div style="background: #2B4C7E; color: white; font-size: 12pt; font-weight: bold; padding: 10pt; border-radius: 8px 8px 0 0; page-break-after: avoid !important; orphans: 3;">
+           STANDARD INCLUSIONS
+       </div>
+       <div style="border: 3px solid #2B4C7E; border-top: none; border-radius: 0 0 8px 8px; padding: 10pt; background: white;">
+           <div style="font-size: 11pt; line-height: 1.35; column-count: 2; column-gap: 20pt;">
+               <ul style="margin: 0; padding-left: 25pt !important; list-style-position: outside;">
+                   <li style="padding-left: 5pt; margin-bottom: 3pt;"><span style="color: #28a745;">✓</span> Item 1</li>
+                   <li style="padding-left: 5pt; margin-bottom: 3pt;"><span style="color: #28a745;">✓</span> Item 2</li>
+               </ul>
+           </div>
+       </div>
+   </div>
+   ```
+
+6. DETAILED SCOPE OF WORK (ALLOW SMART BREAKS - class="section", margin-bottom: 12pt):
+   - Main header "DETAILED SCOPE OF WORK" (14pt bold, color #2B4C7E, page-break-after: avoid !important; orphans: 3) at the top
+   - Then for EACH item in extracted_data['scope_details'], create a subsection using EXACT CSS TEMPLATE below:
+   
+   CRITICAL: Use ALL items from scope_details array. Each scope_detail item has: scope_id, scope_title, and items array.
+   
+   EXACT CSS TEMPLATE for each scope_detail (ALLOW BREAKS IN LONG LISTS):
+   ```
+   <div class="scope-detail-section" style="margin-bottom: 12pt;">
+       <div style="background: #2B4C7E; color: white; font-size: 12pt; font-weight: bold; padding: 10pt; border-radius: 8px 8px 0 0; page-break-after: avoid !important; orphans: 3;">
+           {{scope_detail.scope_title}}
+       </div>
+       <div style="border: 3px solid #2B4C7E; border-top: none; border-radius: 0 0 8px 8px; padding: 10pt; background: white;">
+           <ul style="margin: 0; padding-left: 25pt !important; list-style-type: disc; line-height: 1.35; list-style-position: outside;">
+               <li style="font-size: 11pt; padding-left: 5pt; margin-bottom: 3pt; orphans: 2; widows: 2;">{{item 1}}</li>
+               <li style="font-size: 11pt; padding-left: 5pt; margin-bottom: 3pt; orphans: 2; widows: 2;">{{item 2}}</li>
+           </ul>
+       </div>
+   </div>
+   ```
+   
+   CRITICAL: Keep header with at least 3 items below it using orphans: 3. Allow natural breaks within long bullet lists.
+
+7. EXCLUSIONS (ALLOW BREAKS IF LONG - class="section", margin-bottom: 12pt):
+   
+   EXACT CSS TEMPLATE (use 2 columns if more than 5 items):
+   ```
+   <div class="exclusions-section" style="margin-bottom: 12pt;">
+       <div style="background: #8B0000; color: white; font-size: 12pt; font-weight: bold; padding: 10pt; border-radius: 8px 8px 0 0; page-break-after: avoid !important; orphans: 3;">
+           EXCLUSIONS
+       </div>
+       <div style="border: 3px solid #8B0000; border-top: none; border-radius: 0 0 8px 8px; padding: 10pt; background: white;">
+           <div style="font-size: 11pt; line-height: 1.35; column-count: 2; column-gap: 20pt;">
+               <ul style="margin: 0; padding-left: 25pt !important; list-style-position: outside;">
+                   <li style="padding-left: 5pt; margin-bottom: 3pt;">Item 1</li>
+                   <li style="padding-left: 5pt; margin-bottom: 3pt;">Item 2</li>
+               </ul>
+           </div>
+       </div>
+   </div>
+   ```
+   NOTE: If there are 5 or fewer exclusions, use column-count: 1. If more than 5, use column-count: 2.
+   IMPORTANT: Do NOT include GST in exclusions - it is already calculated and shown in the Executive Summary totals.
+
+8. WARRANTY & CREDENTIALS (NEVER BREAK - class="section no-break", 2 boxes side by side, page-break-inside: avoid !important; margin-bottom: 12pt):
+   
+   EXACT CSS TEMPLATE:
+   ```
+   <div class="warranty-credentials-container" style="display: flex; gap: 12pt; page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12pt;">
+       <div class="warranty-box" style="flex: 1; border: 3px solid #2B4C7E; border-radius: 10px; background: #F8F9FA; padding: 12pt; text-align: center;">
+           <div style="font-size: 28pt; margin-bottom: 6pt;">🛡️</div>
+           <div style="font-size: 12pt; font-weight: bold; color: #2B4C7E; margin-bottom: 6pt;">WARRANTY</div>
+           <div style="font-size: 11pt; font-weight: bold; margin-bottom: 6pt;">2 YEAR WARRANTY</div>
+           <div style="font-size: 10pt; line-height: 1.3;">Two Year Limited Warranty on Material and Workmanship. We stand behind our work and will address any warranty issues promptly at no additional cost.</div>
+       </div>
+       <div class="credentials-box" style="flex: 1; border: 3px solid #2B4C7E; border-radius: 10px; background: #F8F9FA; padding: 12pt;">
+           <div style="font-size: 28pt; margin-bottom: 6pt; text-align: center;">🏆</div>
+           <div style="font-size: 12pt; font-weight: bold; color: #2B4C7E; margin-bottom: 6pt; text-align: center;">CREDENTIALS & CERTIFICATIONS</div>
+           <ul style="margin: 0; padding-left: 25pt !important; list-style-type: disc; line-height: 1.35; list-style-position: outside;">
+               <li style="font-size: 10pt; padding-left: 5pt; margin-bottom: 3pt;">Five Million Liability Insurance</li>
+               <li style="font-size: 10pt; padding-left: 5pt; margin-bottom: 3pt;">Member of the Better Business Bureau (BBB)</li>
+               <li style="font-size: 10pt; padding-left: 5pt; margin-bottom: 3pt;">Current Liability and WCB documents available on request</li>
+           </ul>
+       </div>
+   </div>
+   ```
+   ```
+
+9. PAYMENT TERMS (NEVER BREAK - class="section no-break", page-break-inside: avoid !important; margin-bottom: 12pt):
+   - Header (12pt bold, color #2B4C7E, page-break-after: avoid !important)
+   - <ul style="padding-left: 25pt !important; list-style-position: outside;">
+   - <li style="font-size: 11pt; padding-left: 5pt; margin-bottom: 3pt;">Payment term</li>
+
+10. SIGNATURE SECTION (NEVER BREAK - class="section no-break", page-break-inside: avoid !important; margin-bottom: 12pt; margin-top: 15pt):
+    - Header (12pt bold, color #2B4C7E)
+    - 2 boxes side by side (border-radius: 5px, padding: 10pt)
+    - Each: "Client Signature: _______ Date: _______" (11pt)
+
+11. FOOTER (Simple line with company info, appears on EVERY page):
+    
+    EXACT CSS TEMPLATE (this footer will appear automatically on every page):
+    ```
+    <div id="footer">
+        <div style="border-top: 2px solid #2B4C7E; padding-top: 8pt; text-align: center; font-size: 10pt; color: #333;">
+            ALL PAINTING LTD | Phone: (604) 330-1443 & (604) 525-1403 | www.allpaintingltd.ca
+        </div>
+    </div>
+    ```
+    NOTE: Place this div at the very beginning of the body, right after opening <body> tag. The CSS @page rule will make it appear on every page automatically.
+
+</body>
+</html>
+
+CRITICAL FORMATTING RULES:
+1. CONSISTENT TYPOGRAPHY - Use exact font sizes specified above everywhere
+2. SMART PAGE BREAKS (OPTION 3 - HYBRID):
+   - NEVER BREAK: Client Info, Project Location, Executive Summary, General Terms, Warranty, Payment Terms, Signature
+   - ALLOW BREAKS: Detailed Scope sections (long lists), Standard Inclusions, Exclusions (if long)
+   - ALWAYS keep headers with at least 3 items below using orphans: 3
+   - Use widows: 2 and orphans: 2 on list items
+3. COMPACT SPACING - margin-bottom: 12pt between sections, padding: 10-12pt, line-height: 1.35
+4. ROUNDED CORNERS - Header MUST have border-radius: 10px, Client/Project boxes MUST have border-radius: 10px
+5. PROPER CAPITALIZATION - All sentences and bullets start with capital letters
+6. ALL CSS INLINE - Include all styles in the HTML
+7. PROFESSIONAL APPEARANCE - Clean, organized, easy to read, MINIMIZE blank spaces
+8. USE EXACT HTML TEMPLATES - Copy the HTML templates provided EXACTLY as shown - do not simplify or modify
+9. BULLET POINTS - CRITICAL: Use proper <ul> and <li> tags, NOT bullet characters •. ALL <ul> tags MUST have padding-left: 25pt !important; list-style-position: outside; ALL <li> tags MUST have padding-left: 5pt; margin-bottom: 3pt;
+10. FOOTER PLACEMENT - Place the footer div (with id="footer") at the VERY BEGINNING of the body tag, right after <body>
+11. PAGE NUMBERING - The CSS automatically adds page numbers in the bottom right of each page
+12. SMART CONTACT EXTRACTION - Parse phone/email intelligently throughout document, handle missing fields gracefully. COMPANY NAME must be a business name (not person's name) - check email domain for hints.
+13. LINE HEIGHT - Use line-height: 1.35 for body text for better space efficiency
+14. GST HANDLING - GST is INCLUDED in totals shown in Executive Summary. Do NOT list GST in Exclusions section.
+
+⚠️ FINAL REMINDER:
+- Use REAL HTML tags (<div>, <ul>, <li>, <table>) with inline styles
+- COPY templates exactly - do not simplify
+- border-radius: 10px MUST be on header and info boxes
+- NO bullet characters • - use <li> tags inside <ul>
+
+Return ONLY the complete HTML. No markdown, no code blocks, no explanations."""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=16000,
+        messages=[{"role": "user", "content": formatting_prompt}]
+    )
+    
+    html_content = message.content[0].text.strip()
+    html_content = re.sub(r'^```html\s*', '', html_content)
+    html_content = re.sub(r'^```\s*', '', html_content)
+    html_content = re.sub(r'\s*```$', '', html_content)
+    
+    print("✅ HTML generated successfully")
+    return html_content
+
+def generate_pdf_from_html(html_content, output_path):
+    """Convert HTML to PDF using WeasyPrint with proper page settings"""
+    # Add additional CSS for better page control
+    extra_css = CSS(string='''
+        @page {
+            size: letter;
+            margin: 0.5in;
+        }
+        .no-break, .section {
+            page-break-inside: avoid !important;
+        }
+        table {
+            page-break-inside: avoid !important;
+        }
+    ''')
+    
+    HTML(string=html_content).write_pdf(output_path, stylesheets=[extra_css])
+    return output_path
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static files like logo"""
+    return send_from_directory('static', filename)
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith(('.doc', '.docx')):
+        return jsonify({'error': 'Only .doc and .docx files are supported'}), 400
+    
+    try:
+        filename = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}{os.path.splitext(file.filename)[1]}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'message': 'Document uploaded successfully'
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process/<filename>', methods=['POST'])
+def process_document(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        print("\n" + "="*60)
+        print("STARTING DOCUMENT PROCESSING")
+        print("="*60)
+        
+        print(f"\n📄 Step 1: Extracting text from {filename}...")
+        document_text = extract_text_from_doc(filepath)
+        
+        if not document_text or len(document_text) < 100:
+            return jsonify({'error': 'Could not extract sufficient text from document. Please ensure it is a valid Word document.'}), 500
+        
+        print(f"✅ Extracted {len(document_text)} characters")
+        
+        print(f"\n🤖 Step 2: Using Claude AI to extract and polish data...")
+        extracted_data = call_claude_for_extraction(document_text)
+        
+        print(f"\n🎨 Step 3: Generating professionally formatted HTML...")
+        html_content = call_claude_for_formatting(extracted_data)
+        
+        print(f"\n📑 Step 4: Converting to PDF with page break control...")
+        # Use the same name as the input file but with .pdf extension
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        # Remove the "upload_YYYYMMDD_HHMMSS" prefix if it exists
+        if base_name.startswith('upload_'):
+            base_name = '_'.join(base_name.split('_')[3:]) if len(base_name.split('_')) > 3 else base_name
+        output_filename = f"{base_name}.pdf" if base_name else f"estimate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        
+        generate_pdf_from_html(html_content, output_path)
+        
+        print(f"✅ PDF generated: {output_filename}")
+        print("="*60)
+        print("PROCESSING COMPLETE!")
+        print("="*60 + "\n")
+        
+        return jsonify({
+            'success': True,
+            'pdf_filename': output_filename,
+            'extracted_data': extracted_data,
+            'message': 'Document processed successfully'
+        })
+    
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"\n❌ ERROR:\n{error_trace}")
+        return jsonify({'error': f'{str(e)}'}), 500
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'File not found'}), 404
+    
+    return send_file(filepath, as_attachment=True, download_name=filename)
+
+if __name__ == '__main__':
+    print("\n" + "="*60)
+    print("ALL PAINTING LTD - ESTIMATE GENERATOR")
+    print("Professional Format Edition - Compact Layout")
+    print("="*60)
+    if HAS_LOGO:
+        print(f"✅ Logo found: {LOGO_PATH}")
+    else:
+        print(f"⚠️  Logo not found at: {LOGO_PATH}")
+        print("   Create a 'static' folder and add 'logo.png' to enable logo")
+    print("Server starting on http://localhost:5000")
+    print("Press Ctrl+C to stop")
+    print("="*60 + "\n")
+    app.run(host='0.0.0.0', port=5000, debug=True)

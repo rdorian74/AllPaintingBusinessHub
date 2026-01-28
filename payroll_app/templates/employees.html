@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>👥 Employee Management</h2>
+        <button class="btn btn-primary" onclick="showAddEmployee()">+ Add Employee</button>
+    </div>
+    <div class="card-body">
+        {% if employees %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Code</th>
+                        <th>E-Transfer Email</th>
+                        <th>Auto-Deposit</th>
+                        <th>Total Payments</th>
+                        <th>Total Paid</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td>
+                            <strong>{{ emp.name }}</strong>
+                        </td>
+                        <td>{{ emp.employee_code or '—' }}</td>
+                        <td>
+                            {% if emp.etransfer_email %}
+                                <span style="color: var(--accent);">✓</span>
+                                {{ emp.etransfer_email }}
+                            {% else %}
+                                <span style="color: var(--warning);">⚠️ Not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if emp.auto_deposit %}
+                                <span class="badge badge-sent">Enabled</span>
+                            {% else %}
+                                <span style="color: var(--gray-400);">No</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ emp.payment_count or 0 }}</td>
+                        <td>
+                            <span class="amount">${{ '{:,.2f}'.format(emp.total_paid or 0) }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('employee_detail', id=emp.id) }}" class="btn btn-outline" style="padding: 6px 12px; font-size: 13px;">
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">👥</div>
+            <h3 style="color: var(--gray-600); margin-bottom: 10px;">No Employees Yet</h3>
+            <p style="color: var(--gray-500);">Employees will be added automatically when you upload payroll files</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div class="modal-overlay" id="addEmployeeModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Employee</h3>
+            <button onclick="closeAddModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <form action="{{ url_for('employees') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Employee Name *</label>
+                    <input type="text" name="name" class="form-input" required placeholder="Full name as shown on payroll">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Employee Code</label>
+                    <input type="text" name="employee_code" class="form-input" placeholder="e.g., PF1115">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">E-Transfer Email *</label>
+                    <input type="email" name="etransfer_email" class="form-input" required placeholder="employee@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" name="auto_deposit">
+                        <span>Auto-deposit enabled (no security question needed)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Employee</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAddEmployee() {
+    document.getElementById('addEmployeeModal').classList.add('active');
+}
+
+function closeAddModal() {
+    document.getElementById('addEmployeeModal').classList.remove('active');
+}
+</script>
+{% endblock %}

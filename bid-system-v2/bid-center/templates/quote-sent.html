@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Sent Mover - Bid Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .status-ready { background-color: #d1fae5; color: #065f46; }
+        .status-duplicate { background-color: #fef3c7; color: #92400e; }
+        .status-revised_duplicate { background-color: #e0e7ff; color: #3730a3; }
+        .status-no_match { background-color: #fee2e2; color: #991b1b; }
+        .status-parse_error { background-color: #f3f4f6; color: #6b7280; }
+        .status-processed { background-color: #d1fae5; color: #065f46; }
+        .checkbox-cell { width: 40px; }
+        .table-row:hover { background-color: #f9fafb; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tooltip-cell { position: relative; cursor: help; }
+        .tooltip-cell:hover::after { content: attr(data-full); position: absolute; left: 0; top: 100%; background: #1f2937; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; white-space: normal; max-width: 500px; min-width: 300px; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.3); word-break: break-word; }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { background-color: #e5e7eb; }
+        .sort-asc::after { content: ' ↑'; }
+        .sort-desc::after { content: ' ↓'; }
+        .expand-btn { cursor: pointer; transition: transform 0.2s; }
+        .expand-btn.expanded { transform: rotate(90deg); }
+        .candidate-row { display: none; background-color: #f8fafc; }
+        .candidate-row.show { display: table-row; }
+        .candidate-deals-table { font-size: 12px; width: 100%; }
+        .candidate-deals-table th { background-color: #e2e8f0; padding: 4px 8px; text-align: left; }
+        .candidate-deals-table td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+        .score-bar { height: 8px; background-color: #e5e7eb; border-radius: 4px; overflow: hidden; display: inline-block; width: 60px; vertical-align: middle; }
+        .score-fill { height: 100%; border-radius: 4px; }
+        .subject-cell { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .deal-cell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-delete { background-color: #fee2e2; color: #991b1b; }
+        .btn-delete:hover { background-color: #fecaca; }
+        .btn-create { background-color: #dbeafe; color: #1e40af; }
+        .btn-create:hover { background-color: #bfdbfe; }
+        .action-btn { padding: 2px 6px; font-size: 11px; border-radius: 4px; margin-right: 2px; white-space: nowrap; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <nav class="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">🏢 Bid Center</h1>
+                    <p class="text-blue-200 text-sm">All Painting Ltd. - Bid Management System</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="/" class="px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
+                    <a href="/bids" class="px-4 py-2 rounded hover:bg-blue-700">Bids</a>
+                    <a href="/sync" class="px-4 py-2 rounded hover:bg-blue-700">Sync</a>
+                    <a href="/quote-sent" class="px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">Move</a>
+                    <a href="/calendar" class="px-4 py-2 rounded hover:bg-blue-700">Calendar</a>
+                    <a href="/notifications" class="px-4 py-2 rounded hover:bg-blue-700">Notifications</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">📧 Quote Sent Mover</h2>
+            <p class="text-gray-600">Scans sent emails for estimates and moves matching Pipedrive deals to "Quote Sent & Decision Pending".</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-gray-300" id="outlook-status"></span>
+                    <div><p class="font-medium">Outlook</p><p class="text-sm text-gray-500" id="outlook-text">Checking...</p></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-gray-300" id="pipedrive-status"></span>
+                    <div><p class="font-medium">Pipedrive</p><p class="text-sm text-gray-500" id="pipedrive-text">Checking...</p></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full" id="service-status"></span>
+                    <div><p class="font-medium">Service Status</p><p class="text-sm text-gray-500" id="service-text">Checking...</p></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex gap-4 items-center">
+                    <label class="font-medium">Scan last:</label>
+                    <select id="days-select" class="p-2 border rounded">
+                        <option value="1">1 day</option><option value="3">3 days</option><option value="7" selected>7 days</option>
+                        <option value="10">10 days</option><option value="14">14 days</option><option value="30">30 days</option>
+                    </select>
+                    <button onclick="loadCandidates()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">🔍 Scan Emails</button>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="hide-processed" class="w-4 h-4" onchange="renderCandidatesTable()">
+                        <span class="text-sm">Hide processed</span>
+                    </label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="auto-scan-toggle" class="w-5 h-5" onchange="toggleAutoScan()"><span>Auto-Scan</span></label>
+                    <select id="interval-select" class="p-2 border rounded" onchange="updateSettings()">
+                        <option value="15">Every 15 min</option><option value="30" selected>Every 30 min</option><option value="60">Every hour</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6" id="summary-stats" style="display: none;">
+            <div class="bg-white rounded-lg shadow p-4 text-center"><p class="text-2xl font-bold text-gray-800" id="stat-total">0</p><p class="text-sm text-gray-500">Total Emails</p></div>
+            <div class="bg-white rounded-lg shadow p-4 text-center"><p class="text-2xl font-bold text-green-600" id="stat-ready">0</p><p class="text-sm text-gray-500">Ready to Move</p></div>
+            <div class="bg-white rounded-lg shadow p-4 text-center"><p class="text-2xl font-bold text-yellow-600" id="stat-duplicates">0</p><p class="text-sm text-gray-500">Duplicates</p></div>
+            <div class="bg-white rounded-lg shadow p-4 text-center"><p class="text-2xl font-bold text-red-600" id="stat-no-match">0</p><p class="text-sm text-gray-500">No Match</p></div>
+            <div class="bg-white rounded-lg shadow p-4 text-center"><p class="text-2xl font-bold text-gray-500" id="stat-errors">0</p><p class="text-sm text-gray-500">Parse Errors</p></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+            <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <div>
+                    <h3 class="font-semibold">Estimate Emails</h3>
+                    <p class="text-xs text-gray-500">Click ▶ to see candidate deals. Actions: Move=use matched deal, +New=create new deal, ✕=ignore email</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="processSelected()" id="btn-process-selected" disabled class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">✓ Process Selected (<span id="selected-count">0</span>)</button>
+                    <button onclick="processAllReady()" id="btn-process-all" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">🚀 Process All Ready</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="w-8 px-2 py-3"></th>
+                            <th class="checkbox-cell px-2 py-3 text-left">
+                                <input type="checkbox" id="select-all" class="w-4 h-4" onchange="toggleSelectAll()" title="Select All Ready">
+                            </th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase sortable" data-sort="sent_date">Sent Date</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email Subject</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matched Deal</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase sortable" data-sort="status">Status</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="candidates-table" class="divide-y divide-gray-200">
+                        <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Click "Scan Emails" to load estimate emails</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="p-4 border-b bg-gray-50 flex justify-between items-center"><h3 class="font-semibold">Recent Activity</h3><button onclick="loadActivityLog()" class="text-blue-600 text-sm">Refresh</button></div>
+            <div class="overflow-x-auto max-h-96">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0"><tr><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Time</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Action</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Email Subject</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Deal</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Status</th></tr></thead>
+                    <tbody id="activity-log" class="divide-y divide-gray-200"><tr><td colspan="5" class="px-4 py-2 text-gray-500">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let candidates = [], selectedIds = new Set();
+        let currentSort = { column: 'sent_date', direction: 'desc' };
+        const PIPEDRIVE_URL = 'https://allpainting.pipedrive.com';
+
+        document.addEventListener('DOMContentLoaded', function() { checkConnections(); loadSettings(); loadActivityLog(); setupSortableHeaders(); });
+
+        function setupSortableHeaders() {
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.sort;
+                    currentSort.direction = currentSort.column === col && currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    currentSort.column = col;
+                    document.querySelectorAll('.sortable').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                    th.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                    renderCandidatesTable();
+                });
+            });
+        }
+
+        async function checkConnections() {
+            try { const r = await fetch('/api/quote-sent/test-outlook'); const d = await r.json(); updateStatus('outlook', d.success, d.success ? 'Connected' : 'Error'); } catch(e) { updateStatus('outlook', false, 'Unavailable'); }
+            try { const r = await fetch('/api/quote-sent/test-pipedrive'); const d = await r.json(); updateStatus('pipedrive', d.success, d.success ? d.user : 'Error'); } catch(e) { updateStatus('pipedrive', false, 'Unavailable'); }
+            try { const r = await fetch('/api/quote-sent/status'); const d = await r.json(); updateStatus('service', true, d.scanner_running ? 'Auto-scan running' : 'Manual'); document.getElementById('auto-scan-toggle').checked = d.auto_scan_enabled; } catch(e) { updateStatus('service', false, 'Unavailable'); }
+        }
+
+        function updateStatus(type, success, text) {
+            document.getElementById(`${type}-status`).className = `w-3 h-3 rounded-full ${success ? 'bg-green-500' : 'bg-red-500'}`;
+            document.getElementById(`${type}-text`).textContent = text;
+        }
+
+        async function loadSettings() { try { const r = await fetch('/api/quote-sent/settings'); const d = await r.json(); document.getElementById('auto-scan-toggle').checked = d.auto_scan_enabled; document.getElementById('interval-select').value = d.scan_interval_minutes; document.getElementById('days-select').value = d.days_to_scan; } catch(e) {} }
+        async function toggleAutoScan() { await fetch('/api/quote-sent/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({auto_scan_enabled: document.getElementById('auto-scan-toggle').checked}) }); checkConnections(); }
+        async function updateSettings() { await fetch('/api/quote-sent/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ scan_interval_minutes: parseInt(document.getElementById('interval-select').value), days_to_scan: parseInt(document.getElementById('days-select').value) }) }); }
+
+        async function loadCandidates() {
+            showLoading('Scanning sent emails and analyzing matches...');
+            try {
+                const r = await fetch('/api/quote-sent/candidates', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({days_back: parseInt(document.getElementById('days-select').value)}) });
+                const d = await r.json();
+                if (!d.success) { alert('Error: ' + d.error); hideLoading(); return; }
+                candidates = d.candidates || []; selectedIds.clear();
+                document.getElementById('summary-stats').style.display = 'grid';
+                const s = d.summary || {};
+                document.getElementById('stat-total').textContent = s.total || 0;
+                document.getElementById('stat-ready').textContent = s.ready || 0;
+                document.getElementById('stat-duplicates').textContent = s.duplicates || 0;
+                document.getElementById('stat-no-match').textContent = s.no_match || 0;
+                document.getElementById('stat-errors').textContent = s.parse_errors || 0;
+                renderCandidatesTable();
+            } catch(e) { alert('Error: ' + e.message); }
+            hideLoading();
+        }
+
+        function renderCandidatesTable() {
+            const tbody = document.getElementById('candidates-table');
+            const hideProcessed = document.getElementById('hide-processed').checked;
+            
+            let filtered = candidates;
+            if (hideProcessed) {
+                filtered = candidates.filter(c => !c.already_processed);
+            }
+            
+            if (!filtered.length) { 
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">' + 
+                    (hideProcessed ? 'No unprocessed emails (uncheck "Hide processed" to see all)' : 'No emails found') + '</td></tr>'; 
+                return; 
+            }
+            
+            // Sort
+            filtered.sort((a,b) => { 
+                let va = a[currentSort.column]||'', vb = b[currentSort.column]||''; 
+                if (currentSort.column==='sent_date') { va = new Date(va||0).getTime(); vb = new Date(vb||0).getTime(); } 
+                else if (typeof va==='string') { va=va.toLowerCase(); vb=vb.toLowerCase(); } 
+                return va<vb ? -1*(currentSort.direction==='asc'?1:-1) : va>vb ? 1*(currentSort.direction==='asc'?1:-1) : 0; 
+            });
+            
+            let html = '';
+            filtered.forEach((c, idx) => {
+                const realIdx = candidates.indexOf(c);
+                const sentDate = c.sent_date ? new Date(c.sent_date).toLocaleString() : '-';
+                const canSelect = (c.status === 'ready' || c.status === 'revised_duplicate') && !c.already_processed;
+                const hasCandidates = c.candidate_deals_considered && c.candidate_deals_considered.length > 0;
+                
+                // Get matched deal info
+                let matchedDealHtml = '<span class="text-gray-400">-</span>';
+                if (c.matched_deal) {
+                    matchedDealHtml = `<a href="${PIPEDRIVE_URL}/deal/${c.matched_deal.id}" target="_blank" class="text-blue-600 hover:underline deal-cell block" title="${esc(c.matched_deal.title)}">${esc(truncate(c.matched_deal.title, 35))}</a><span class="text-xs text-gray-500">${c.confidence}%</span>`;
+                } else if (c.duplicate_deal) {
+                    matchedDealHtml = `<a href="${PIPEDRIVE_URL}/deal/${c.duplicate_deal.id}" target="_blank" class="text-yellow-600 hover:underline deal-cell block" title="${esc(c.duplicate_deal.title)}">${esc(truncate(c.duplicate_deal.title, 35))}</a><span class="text-xs text-yellow-600">In Quote Sent</span>`;
+                }
+                
+                // Build actions based on status
+                let actions = '';
+                if (c.already_processed) {
+                    actions = `<span class="text-green-600 text-xs">✓ Done</span>`;
+                } else {
+                    if (c.status === 'ready') {
+                        actions += `<button onclick="processSingle('${c.message_id}')" class="action-btn bg-green-600 text-white" title="Move matched deal">Move</button>`;
+                        actions += `<button onclick="createDeal('${c.message_id}', ${realIdx})" class="action-btn btn-create" title="Create new deal instead">+New</button>`;
+                    } else if (c.status === 'revised_duplicate') {
+                        actions += `<button onclick="processSingle('${c.message_id}')" class="action-btn bg-indigo-600 text-white" title="Update existing deal">Update</button>`;
+                        actions += `<button onclick="createDeal('${c.message_id}', ${realIdx})" class="action-btn btn-create" title="Create new deal instead">+New</button>`;
+                    } else if (c.status === 'duplicate') {
+                        actions += `<span class="text-yellow-600 text-xs mr-1">In Quote Sent</span>`;
+                    } else if (c.status === 'no_match') {
+                        actions += `<button onclick="createDeal('${c.message_id}', ${realIdx})" class="action-btn btn-create" title="Create new deal">+New Deal</button>`;
+                    } else if (c.status === 'parse_error') {
+                        actions += `<span class="text-gray-400 text-xs mr-1">Invalid</span>`;
+                    }
+                    actions += `<button onclick="ignoreEmail('${c.message_id}')" class="action-btn btn-delete" title="Ignore this email">✕</button>`;
+                }
+                
+                const subjectDisplay = truncate(c.subject, 45);
+                let statusClass = c.already_processed ? 'processed' : c.status;
+                
+                html += `<tr class="table-row hover:bg-gray-50" data-idx="${realIdx}">
+                    <td class="px-2 py-3 text-center">${hasCandidates || c.status === 'no_match' ? `<span class="expand-btn text-gray-400" onclick="toggleExpand(${realIdx})">▶</span>` : ''}</td>
+                    <td class="checkbox-cell px-2 py-3">${canSelect ? `<input type="checkbox" class="candidate-checkbox w-4 h-4" data-id="${c.message_id}" ${selectedIds.has(c.message_id)?'checked':''} onchange="toggleSelect('${c.message_id}')">` : ''}</td>
+                    <td class="px-3 py-3 text-sm whitespace-nowrap">${sentDate}</td>
+                    <td class="px-3 py-3 text-sm tooltip-cell subject-cell" data-full="${esc(c.subject)}">${esc(subjectDisplay)}</td>
+                    <td class="px-3 py-3 text-sm">${matchedDealHtml}</td>
+                    <td class="px-3 py-3"><span class="px-2 py-1 text-xs rounded status-${statusClass}">${formatStatus(statusClass)}</span>${c.is_revised && !c.already_processed?'<span class="ml-1 px-1 py-0.5 text-xs rounded bg-purple-100 text-purple-800">Rev</span>':''}</td>
+                    <td class="px-3 py-3">${actions}</td>
+                </tr>`;
+                
+                html += `<tr class="candidate-row" id="expand-row-${realIdx}">
+                    <td colspan="7" class="px-4 py-4 bg-slate-50 border-l-4 border-blue-400">
+                        <div class="mb-3"><span class="font-medium text-gray-700">📧 Full Subject:</span> <span class="text-gray-600 ml-2">${esc(c.subject)}</span></div>
+                        ${c.estimate_id ? `<div class="mb-2 text-sm"><span class="font-medium text-gray-600">Parsed:</span> <span class="bg-gray-100 px-2 py-0.5 rounded">ID: ${esc(c.estimate_id)}</span> ${c.gc_name ? `<span class="bg-gray-100 px-2 py-0.5 rounded ml-1">GC: ${esc(c.gc_name)}</span>` : ''} ${c.project_name ? `<span class="bg-gray-100 px-2 py-0.5 rounded ml-1">Project: ${esc(c.project_name)}</span>` : ''}</div>` : ''}
+                        <div class="mt-3"><span class="font-medium text-gray-700">🔍 Candidate Deals:</span>${renderCandidateDeals(c.candidate_deals_considered)}</div>
+                    </td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html;
+            updateSelectedCount();
+        }
+
+        function renderCandidateDeals(cds) {
+            if (!cds || !cds.length) return '<p class="text-sm text-gray-500 mt-2 italic">No matching candidates in source stages</p>';
+            return `<table class="candidate-deals-table mt-2 border border-gray-200 rounded bg-white"><thead><tr><th>Score</th><th>Deal Title</th><th>Organization</th><th>Match Reasons</th></tr></thead><tbody>${cds.map(cd => `<tr class="hover:bg-gray-50"><td style="width:100px"><div class="score-bar"><div class="score-fill" style="width:${cd.score}%;background-color:${cd.score>=85?'#10b981':cd.score>=50?'#f59e0b':'#ef4444'}"></div></div> <span class="text-xs font-medium">${cd.score}%</span></td><td><a href="${PIPEDRIVE_URL}/deal/${cd.id}" target="_blank" class="text-blue-600 hover:underline">${esc(cd.title)}</a></td><td class="text-gray-600">${esc(cd.org_name||'-')}</td><td class="text-xs text-gray-500">${cd.reasons?cd.reasons.join(', '):'-'}</td></tr>`).join('')}</tbody></table>`;
+        }
+
+        function toggleExpand(idx) { 
+            const row = document.getElementById(`expand-row-${idx}`); 
+            const btn = document.querySelector(`tr[data-idx="${idx}"] .expand-btn`); 
+            if (row) row.classList.toggle('show'); 
+            if (btn) btn.classList.toggle('expanded'); 
+        }
+        
+        function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : s; }
+        function formatStatus(s) { return {'ready':'✓ Ready','duplicate':'⚠ Duplicate','revised_duplicate':'📝 Update','no_match':'✗ No Match','parse_error':'⚠ Parse Error','processed':'✓ Done'}[s]||s; }
+        function toggleSelect(id) { selectedIds.has(id) ? selectedIds.delete(id) : selectedIds.add(id); updateSelectedCount(); }
+        function toggleSelectAll() { 
+            const all = document.getElementById('select-all').checked; 
+            candidates.filter(c=>(c.status==='ready'||c.status==='revised_duplicate') && !c.already_processed).forEach(c=> all ? selectedIds.add(c.message_id) : selectedIds.delete(c.message_id)); 
+            document.querySelectorAll('.candidate-checkbox').forEach(cb=>cb.checked=all); 
+            updateSelectedCount(); 
+        }
+        function updateSelectedCount() { 
+            document.getElementById('selected-count').textContent = selectedIds.size; 
+            document.getElementById('btn-process-selected').disabled = selectedIds.size===0; 
+        }
+
+        async function processSingle(id) { 
+            showLoading('Processing...'); 
+            try { 
+                const r = await fetch('/api/quote-sent/process-single', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message_id:id,force:true}) }); 
+                const d = await r.json(); 
+                if (d.success) { alert(`✓ ${d.result.status}: ${d.result.message}`); } 
+                else { alert('Error: ' + d.error); }
+                loadCandidates(); loadActivityLog(); 
+            } catch(e) { alert('Error: '+e.message); } 
+            hideLoading(); 
+        }
+
+        async function ignoreEmail(messageId) {
+            if (!confirm('Ignore this email? It will not appear in future scans.')) return;
+            showLoading('Marking as ignored...');
+            try {
+                const c = candidates.find(x => x.message_id === messageId);
+                const r = await fetch('/api/quote-sent/ignore-email', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({message_id: messageId, subject: c ? c.subject : ''}) 
+                });
+                const d = await r.json();
+                if (d.success) { loadCandidates(); loadActivityLog(); } 
+                else { alert('Error: ' + (d.error || 'Unknown error')); }
+            } catch(e) { alert('Error: ' + e.message); }
+            hideLoading();
+        }
+
+        async function createDeal(messageId, idx, force = false) {
+            const c = candidates[idx];
+            if (!c) { alert('Could not find candidate'); return; }
+            
+            let dealTitle = 'Estimate';
+            if (c.estimate_id) dealTitle += ` - ${c.estimate_id}`;
+            if (c.gc_name) dealTitle += ` - ${c.gc_name}`;
+            if (c.project_name) dealTitle += ` - ${c.project_name}`;
+            
+            if (!force && !confirm(`Create NEW deal in "Quote Sent & Decision Pending"?\n\nTitle: ${dealTitle}`)) return;
+            
+            showLoading('Creating deal in Pipedrive...');
+            try {
+                const r = await fetch('/api/quote-sent/create-deal', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({
+                        message_id: messageId, 
+                        subject: c.subject,
+                        estimate_info: {
+                            estimate_id: c.estimate_id,
+                            gc_name: c.gc_name,
+                            project_name: c.project_name,
+                            project_address: c.project_address
+                        },
+                        force: force
+                    }) 
+                });
+                const d = await r.json();
+                if (d.success) {
+                    alert(`✓ Deal created!\n\nDeal ID: ${d.deal_id}\nTitle: ${d.deal_title}`);
+                    loadCandidates(); loadActivityLog();
+                } else if (d.error === 'duplicate_exists') {
+                    // Duplicate found - ask if user wants to create anyway
+                    const dupDeal = d.duplicate_deal;
+                    if (confirm(`⚠️ A similar deal already exists:\n\n"${dupDeal.title}"\n\nDo you want to create a new deal anyway?`)) {
+                        hideLoading();
+                        createDeal(messageId, idx, true); // Force creation
+                        return;
+                    }
+                } else { 
+                    alert('Error: ' + (d.error || d.message || 'Unknown error')); 
+                }
+            } catch(e) { alert('Error: ' + e.message); }
+            hideLoading();
+        }
+        
+        async function processSelected() { 
+            if (!selectedIds.size) return; 
+            showLoading(`Processing ${selectedIds.size} estimates...`); 
+            try { 
+                const r = await fetch('/api/quote-sent/process-batch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message_ids:Array.from(selectedIds),force:true}) }); 
+                const d = await r.json(); 
+                if (d.success) { alert(`✓ Batch Complete!\n\nMoved: ${d.summary.moved}\nDuplicates: ${d.summary.duplicates}\nNo Match: ${d.summary.no_match}\nErrors: ${d.summary.errors}`); } 
+                else { alert('Error: ' + d.error); }
+                loadCandidates(); loadActivityLog(); 
+            } catch(e) { alert('Error: '+e.message); } 
+            hideLoading(); 
+        }
+        
+        async function processAllReady() { 
+            const ready = candidates.filter(c=>c.status==='ready' && !c.already_processed); 
+            if (!ready.length) { alert('No estimates ready to process'); return; } 
+            if (!confirm(`Process all ${ready.length} ready estimates?`)) return; 
+            showLoading(`Processing ${ready.length} estimates...`); 
+            try { 
+                const r = await fetch('/api/quote-sent/process-batch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message_ids:ready.map(c=>c.message_id),force:true}) }); 
+                const d = await r.json(); 
+                if (d.success) { alert(`✓ Batch Complete!\n\nMoved: ${d.summary.moved}\nDuplicates: ${d.summary.duplicates}\nNo Match: ${d.summary.no_match}\nErrors: ${d.summary.errors}`); } 
+                else { alert('Error: ' + d.error); }
+                loadCandidates(); loadActivityLog(); 
+            } catch(e) { alert('Error: '+e.message); } 
+            hideLoading(); 
+        }
+
+        async function loadActivityLog() { 
+            try { 
+                const r = await fetch('/api/quote-sent/activity-log'); 
+                const d = await r.json(); 
+                const tbody = document.getElementById('activity-log'); 
+                const logs = d.log||[]; 
+                tbody.innerHTML = logs.length ? logs.slice(0,50).map(l => {
+                    const subjectShort = truncate(l.email_subject || '-', 40);
+                    return `<tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2 text-sm text-gray-500 whitespace-nowrap">${new Date(l.timestamp).toLocaleString()}</td>
+                        <td class="px-4 py-2 text-sm">${l.action}</td>
+                        <td class="px-4 py-2 text-sm text-gray-600" title="${esc(l.email_subject||'')}">${esc(subjectShort)}</td>
+                        <td class="px-4 py-2 text-sm">${l.deal_id?`<a href="${PIPEDRIVE_URL}/deal/${l.deal_id}" target="_blank" class="text-blue-600 hover:underline">#${l.deal_id}</a>`:'-'}</td>
+                        <td class="px-4 py-2 text-sm ${l.status==='success'?'text-green-600':'text-red-600'}">${l.status}</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="5" class="px-4 py-2 text-gray-500">No activity yet</td></tr>'; 
+            } catch(e) { console.error(e); } 
+        }
+
+        function showLoading(t) { document.getElementById('loading-text').textContent = t||'Processing...'; document.getElementById('loading-overlay').style.display = 'flex'; }
+        function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+    </script>
+</body>
+</html>

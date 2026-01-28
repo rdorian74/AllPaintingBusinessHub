@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bids - Bid Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gradient-to-r from-blue-900 to-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">🏢 Bid Center</h1>
+                    <p class="text-blue-200 text-sm">All Painting Ltd. - Bid Management System</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="/" class="px-4 py-2 rounded hover:bg-blue-700">Dashboard</a>
+                    <a href="/bids" class="px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">Bids</a>
+                    <a href="/sync" class="px-4 py-2 rounded hover:bg-blue-700">Sync</a>
+                    <a href="/quote-sent" class="px-4 py-2 rounded hover:bg-blue-700">Move</a>
+                    <a href="/calendar" class="px-4 py-2 rounded hover:bg-blue-700">Calendar</a>
+                    <a href="/notifications" class="px-4 py-2 rounded hover:bg-blue-700">Notifications</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">📋 Bid Tracker</h2>
+                <p class="text-gray-600">All bids detected from email scanning. These are potential projects from GCs inviting All Painting to bid.</p>
+            </div>
+        </div>
+
+        <!-- Scanner Controls -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <!-- Manual Scan -->
+                <div class="flex items-center gap-4">
+                    <div>
+                        <label class="text-gray-600 text-sm block mb-1">Days to scan back</label>
+                        <select id="days-back" class="p-2 border rounded">
+                            <option value="1">1 day</option>
+                            <option value="3">3 days</option>
+                            <option value="7" selected>7 days</option>
+                            <option value="14">14 days</option>
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                            <option value="90">90 days</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                            <input type="checkbox" id="force-rescan" class="w-4 h-4">
+                            Force re-scan all emails
+                        </label>
+                        <span class="text-xs text-gray-400">Ignores already-processed emails</span>
+                    </div>
+                    <button onclick="scanEmails()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mt-4">
+                        <span>📧</span> Scan Emails Now
+                    </button>
+                </div>
+
+                <!-- Auto-Scan Toggle -->
+                <div class="flex items-center gap-4 border-l pl-6">
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="auto-scan-enabled" class="w-5 h-5" onchange="updateAutoScan()">
+                            <span class="font-medium">Auto-Scan</span>
+                        </label>
+                        <p class="text-gray-500 text-xs mt-1" id="auto-scan-status">Disabled</p>
+                    </div>
+                    <div>
+                        <label class="text-gray-600 text-sm block mb-1">Interval</label>
+                        <select id="scan-interval" class="p-2 border rounded" onchange="updateAutoScan()">
+                            <option value="5">Every 5 min</option>
+                            <option value="15">Every 15 min</option>
+                            <option value="30">Every 30 min</option>
+                            <option value="60">Every 1 hour</option>
+                            <option value="180">Every 3 hours</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Last Scan Info -->
+            <div class="mt-4 pt-4 border-t text-sm text-gray-600" id="last-scan-info">
+                Last scan: Never
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <p class="text-gray-500 text-sm">Total Bids</p>
+                <p class="text-2xl font-bold text-blue-600" id="stat-total">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <p class="text-gray-500 text-sm">Due Today</p>
+                <p class="text-2xl font-bold text-red-500" id="stat-today">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <p class="text-gray-500 text-sm">Due Tomorrow</p>
+                <p class="text-2xl font-bold text-orange-500" id="stat-tomorrow">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <p class="text-gray-500 text-sm">Synced to Pipedrive</p>
+                <p class="text-2xl font-bold text-green-500" id="stat-synced">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <p class="text-gray-500 text-sm">Already in Pipedrive</p>
+                <p class="text-2xl font-bold text-yellow-500" id="stat-duplicates">0</p>
+            </div>
+        </div>
+
+        <!-- Bids Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200" id="bids-table-container">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('project_name')">
+                            Project <span id="sort-project_name" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('gc_company')">
+                            GC Company <span id="sort-gc_company" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('original_bid_email_date')">
+                            Received <span id="sort-original_bid_email_date" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('bid_due_date')">
+                            Due Date <span id="sort-bid_due_date" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('current_addendum')">
+                            Addendum <span id="sort-current_addendum" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('gc_contact_name')">
+                            Contact <span id="sort-gc_contact_name" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('pipedrive_status')">
+                            Pipedrive <span id="sort-pipedrive_status" class="ml-1">↕</span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="bids-table">
+                    <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Loading bids...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        let lastScanResult = null;
+        let allBids = [];
+        let currentSort = { field: 'bid_due_date', direction: 'asc' };
+
+        async function loadScannerStatus() {
+            try {
+                const response = await fetch('/api/scanner/status');
+                const data = await response.json();
+                
+                // Update auto-scan controls
+                document.getElementById('auto-scan-enabled').checked = data.auto_scan_enabled || false;
+                document.getElementById('scan-interval').value = data.scan_interval_minutes || 15;
+                
+                // Update status text
+                const statusText = data.auto_scan_enabled 
+                    ? `Enabled - scanning every ${data.scan_interval_minutes} min` 
+                    : 'Disabled';
+                document.getElementById('auto-scan-status').textContent = statusText;
+                
+                // Update last scan info
+                if (data.last_scan_time) {
+                    const lastScan = new Date(data.last_scan_time).toLocaleString();
+                    let info = `Last scan: ${lastScan}`;
+                    if (data.last_scan_result) {
+                        const r = data.last_scan_result;
+                        info += ` | Emails: ${r.total_emails_scanned || 0} | New: ${r.new_bids_created || 0} | Duplicates: ${r.duplicates_skipped || 0}`;
+                        document.getElementById('stat-duplicates').textContent = r.duplicates_skipped || 0;
+                    }
+                    document.getElementById('last-scan-info').textContent = info;
+                }
+            } catch (e) {
+                console.error('Error loading scanner status:', e);
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr.split('T')[0] || dateStr;
+            return date.toLocaleDateString('en-CA');
+        }
+
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'asc';
+            }
+            
+            document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '↕');
+            const indicator = document.getElementById(`sort-${field}`);
+            if (indicator) {
+                indicator.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+            }
+            
+            renderBids();
+        }
+
+        function renderBids() {
+            if (!allBids || allBids.length === 0) {
+                document.getElementById('bids-table').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No bids found. Click "Scan Emails Now" to detect bids.</td></tr>';
+                return;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+            
+            const sortedBids = [...allBids].sort((a, b) => {
+                let aVal = a[currentSort.field] || '';
+                let bVal = b[currentSort.field] || '';
+                
+                if (currentSort.field === 'current_addendum') {
+                    aVal = parseInt(aVal) || 0;
+                    bVal = parseInt(bVal) || 0;
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            let dueToday = 0, dueTomorrow = 0;
+            
+            const html = sortedBids.map(bid => {
+                const dueDate = bid.bid_due_date || '';
+                if (dueDate.startsWith(today)) dueToday++;
+                if (dueDate.startsWith(tomorrow)) dueTomorrow++;
+                
+                const isUrgent = dueDate.startsWith(today);
+                const rowClass = isUrgent ? 'bg-red-50' : '';
+                const addendum = bid.current_addendum || 0;
+                const receivedDate = formatDate(bid.original_bid_email_date);
+                
+                // Pipedrive status badge
+                const pdStatus = bid.pipedrive_status || 'pending';
+                const pdDealId = bid.pipedrive_deal_id;
+                let pdBadge = '';
+                if (pdStatus === 'synced') {
+                    pdBadge = `<a href="https://allpainting.pipedrive.com/deal/${pdDealId}" target="_blank" class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium hover:bg-green-200">✓ Synced</a>`;
+                } else if (pdStatus === 'duplicate') {
+                    const matchInfo = bid.pipedrive_match_info ? JSON.parse(bid.pipedrive_match_info) : {};
+                    const conf = matchInfo.confidence || '?';
+                    pdBadge = `<a href="https://allpainting.pipedrive.com/deal/${pdDealId}" target="_blank" class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium hover:bg-yellow-200" title="${matchInfo.deal_title || 'Existing deal'}">⚠️ Exists (${conf}%)</a>`;
+                } else if (pdStatus === 'error') {
+                    pdBadge = '<span class="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">❌ Error</span>';
+                } else {
+                    pdBadge = '<span class="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">⏳ Pending</span>';
+                }
+                
+                return `<tr class="${rowClass}">
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900">${bid.project_name || 'Unknown'}</div>
+                        <div class="text-sm text-gray-500">${(bid.project_address || '').substring(0, 50)}</div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-700">${bid.gc_company || '-'}</td>
+                    <td class="px-6 py-4 text-gray-500 text-sm">${receivedDate}</td>
+                    <td class="px-6 py-4">
+                        <span class="${isUrgent ? 'text-red-600 font-bold' : 'text-gray-700'}">${dueDate || '-'}</span>
+                        ${bid.bid_due_time ? `<br><span class="text-sm text-gray-500">${bid.bid_due_time}</span>` : ''}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        ${addendum > 0 ? `<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">#${addendum}</span>` : '<span class="text-gray-400">-</span>'}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-gray-700">${bid.gc_contact_name || '-'}</div>
+                        <div class="text-sm text-gray-500">${bid.gc_contact_email || ''}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        ${pdBadge}
+                    </td>
+                    <td class="px-6 py-4">
+                        <button onclick="rescanBid(${bid.id})" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Re-scan email to update details">🔄</button>
+                        ${pdStatus !== 'synced' && pdStatus !== 'duplicate' ? `<button onclick="syncBid(${bid.id})" class="text-blue-600 hover:text-blue-800 mr-2" title="Sync to Pipedrive">📤</button>` : ''}
+                        ${pdStatus === 'duplicate' || pdStatus === 'error' ? `<button onclick="resetSyncStatus(${bid.id})" class="text-purple-600 hover:text-purple-800 mr-2" title="Reset sync status">🔃</button>` : ''}
+                        <button onclick="createCalendar(${bid.id})" class="text-green-600 hover:text-green-800 mr-2" title="Create Calendar Event">📅</button>
+                        <button onclick="deleteBid(${bid.id})" class="text-red-600 hover:text-red-800" title="Delete">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            
+            document.getElementById('bids-table').innerHTML = html;
+            document.getElementById('stat-today').textContent = dueToday;
+            document.getElementById('stat-tomorrow').textContent = dueTomorrow;
+        }
+
+        async function loadBids() {
+            try {
+                const response = await fetch('/api/bids');
+                const data = await response.json();
+                
+                if (data.bids && data.bids.length > 0) {
+                    allBids = data.bids;
+                    document.getElementById('stat-total').textContent = allBids.length;
+                    
+                    // Calculate sync stats
+                    let synced = 0, duplicates = 0;
+                    allBids.forEach(bid => {
+                        if (bid.pipedrive_status === 'synced') synced++;
+                        else if (bid.pipedrive_status === 'duplicate') duplicates++;
+                    });
+                    document.getElementById('stat-synced').textContent = synced;
+                    document.getElementById('stat-duplicates').textContent = duplicates;
+                    
+                    renderBids();
+                } else {
+                    allBids = [];
+                    document.getElementById('bids-table').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">No bids found. Click "Scan Emails Now" to detect bids.</td></tr>';
+                }
+                
+            } catch (e) {
+                console.error('Error loading bids:', e);
+                document.getElementById('bids-table').innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-red-500">Error loading bids. Is the Email Scanner service running?</td></tr>';
+            }
+        }
+
+        async function scanEmails() {
+            const daysBack = parseInt(document.getElementById('days-back').value);
+            const forceRescan = document.getElementById('force-rescan').checked;
+            
+            let confirmMsg = `Scan emails from the last ${daysBack} days for new bids?`;
+            if (forceRescan) {
+                confirmMsg += '\n\n⚠️ Force re-scan enabled: This will re-analyze ALL emails, including ones already processed.';
+            }
+            if (!confirm(confirmMsg)) return;
+            
+            try {
+                document.querySelector('button[onclick="scanEmails()"]').disabled = true;
+                document.querySelector('button[onclick="scanEmails()"]').textContent = '⏳ Scanning...';
+                
+                const response = await fetch('/api/scan', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({days_back: daysBack, force_rescan: forceRescan}) 
+                });
+                const data = await response.json();
+                
+                // Debug: log the actual response
+                console.log('Scan response:', data);
+                
+                let message = `Scan complete!\n\n`;
+                message += `📧 Total emails scanned: ${data.total_emails_scanned || 0}\n`;
+                message += `🔍 Emails analyzed (AI): ${data.keyword_matches || 0}\n`;
+                message += `✅ New bids found: ${data.new_bids_created || 0}\n`;
+                message += `📝 Addendums updated: ${data.addendums_updated || 0}\n`;
+                message += `⏭️ Duplicates skipped: ${data.duplicates_skipped || 0}\n`;
+                message += `🔄 Already processed: ${data.already_processed || 0}`;
+                
+                // Check if there was an error
+                if (data.error) {
+                    message = `Scan error: ${data.error}`;
+                } else if (data.message) {
+                    message += `\n\n${data.message}`;
+                }
+                
+                alert(message);
+                loadBids();
+                loadScannerStatus();
+            } catch (e) {
+                alert('Error scanning emails. Is the Email Scanner service running?');
+            } finally {
+                document.querySelector('button[onclick="scanEmails()"]').disabled = false;
+                document.querySelector('button[onclick="scanEmails()"]').innerHTML = '<span>📧</span> Scan Emails Now';
+            }
+        }
+
+        async function updateAutoScan() {
+            const enabled = document.getElementById('auto-scan-enabled').checked;
+            const interval = parseInt(document.getElementById('scan-interval').value);
+            
+            try {
+                await fetch('/api/scanner/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        auto_scan_enabled: enabled, 
+                        scan_interval_minutes: interval 
+                    })
+                });
+                
+                // Update status text immediately
+                const statusText = enabled 
+                    ? `Enabled - scanning every ${interval} min` 
+                    : 'Disabled';
+                document.getElementById('auto-scan-status').textContent = statusText;
+                
+            } catch (e) {
+                console.error('Error updating auto-scan settings:', e);
+                alert('Error updating auto-scan settings');
+            }
+        }
+
+        async function rescanBid(bidId) {
+            if (!confirm('Re-scan the original email to update this bid\'s details?\n\nThis will fetch the original email and re-extract project name, due date, contact info, etc.')) return;
+            try {
+                const response = await fetch(`/api/scanner/rescan-bid/${bidId}`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Bid updated!\n\nUpdated fields:\n${JSON.stringify(data.updated_fields, null, 2)}`);
+                    loadBids();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (e) {
+                alert('Error re-scanning bid');
+            }
+        }
+
+        async function syncBid(bidId) {
+            if (!confirm('Sync this bid to Pipedrive?')) return;
+            try {
+                const response = await fetch(`/api/sync/${bidId}`, { method: 'POST' });
+                const data = await response.json();
+                alert(data.success ? `Synced! ${data.message}` : `Error: ${data.error || data.message}`);
+                loadBids();
+            } catch (e) {
+                alert('Error syncing bid');
+            }
+        }
+
+        async function createCalendar(bidId) {
+            if (!confirm('Create calendar event for this bid deadline?')) return;
+            try {
+                const response = await fetch(`/api/calendar/create/${bidId}`, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                alert(data.success ? 'Calendar event created!' : `Error: ${data.error}`);
+            } catch (e) {
+                alert('Error creating calendar event');
+            }
+        }
+
+        async function deleteBid(bidId) {
+            if (!confirm('Delete this bid? This cannot be undone.')) return;
+            try {
+                const response = await fetch(`/api/bids/${bidId}`, { method: 'DELETE' });
+                const data = await response.json();
+                alert(data.success ? 'Bid deleted' : `Error: ${data.error}`);
+                loadBids();
+            } catch (e) {
+                alert('Error deleting bid');
+            }
+        }
+
+        async function resetSyncStatus(bidId) {
+            if (!confirm('Reset sync status? This will allow the bid to be synced again.')) return;
+            try {
+                const response = await fetch(`/api/sync/reset/${bidId}`, { method: 'POST' });
+                const data = await response.json();
+                alert(data.success ? 'Status reset - bid can now be synced again' : `Error: ${data.error}`);
+                loadBids();
+            } catch (e) {
+                alert('Error resetting status');
+            }
+        }
+
+        // Load on page load
+        loadBids();
+        loadScannerStatus();
+        
+        // Refresh every 60 seconds
+        setInterval(() => {
+            loadBids();
+            loadScannerStatus();
+        }, 60000);
+    </script>
+</body>
+</html>

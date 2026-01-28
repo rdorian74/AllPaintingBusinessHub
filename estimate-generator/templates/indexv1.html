@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Painting Ltd - Estimate Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 50px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2B4C7E;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #2B4C7E;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            background: #f8f9fc;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            background: #e8ecf7;
+            border-color: #1a3456;
+        }
+
+        .upload-area.dragover {
+            background: #d0d9f0;
+            border-color: #1a3456;
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            color: #2B4C7E;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: #2B4C7E;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #1a3456;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(43, 76, 126, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-area {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .status-area.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status-area.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status-area.processing {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .progress-steps {
+            margin-top: 20px;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active {
+            box-shadow: 0 4px 12px rgba(43, 76, 126, 0.2);
+        }
+
+        .progress-step.completed {
+            opacity: 0.7;
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e8ecf7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+
+        .step-icon.active {
+            background: #2B4C7E;
+            color: white;
+        }
+
+        .step-icon.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-text {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .download-btn {
+            background: #28a745;
+            margin-top: 20px;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2B4C7E;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-info {
+            background: #f8f9fc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .file-info h3 {
+            color: #2B4C7E;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ALL PAINTING LTD.</div>
+            <div class="tagline">Professional Estimate Generator</div>
+        </div>
+
+        <h1>Transform Your Estimates</h1>
+        <p>Upload your Word document (.doc or .docx) and we'll convert it into a professional, standardized PDF estimate using AI.</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Click to upload or drag and drop</div>
+            <div class="upload-hint">Supports .doc and .docx files (max 16MB)</div>
+            <input type="file" id="fileInput" accept=".doc,.docx">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <h3>📋 File Selected</h3>
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" id="processBtn" disabled>🚀 Generate Professional PDF</button>
+        </div>
+
+        <div class="status-area" id="statusArea">
+            <div id="statusMessage"></div>
+            <div class="progress-steps" id="progressSteps" style="display: none;">
+                <div class="progress-step" id="step1">
+                    <div class="step-icon">📄</div>
+                    <div class="step-text">Document loaded</div>
+                </div>
+                <div class="progress-step" id="step2">
+                    <div class="step-icon">🤖</div>
+                    <div class="step-text">Using Claude AI to extract data...</div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="step-icon">✅</div>
+                    <div class="step-text">AI extraction complete</div>
+                </div>
+                <div class="progress-step" id="step4">
+                    <div class="step-icon">📝</div>
+                    <div class="step-text">Generating professional PDF...</div>
+                </div>
+                <div class="progress-step" id="step5">
+                    <div class="step-icon">✨</div>
+                    <div class="step-text">PDF ready for download</div>
+                </div>
+            </div>
+            <button class="btn download-btn" id="downloadBtn" style="display: none;">📥 Download PDF</button>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFilename = null;
+        let pdfFilename = null;
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const statusArea = document.getElementById('statusArea');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressSteps = document.getElementById('progressSteps');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+
+        // File selection
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            if (!file.name.match(/\.(doc|docx)$/i)) {
+                showStatus('error', '❌ Please upload a .doc or .docx file');
+                return;
+            }
+
+            fileName.textContent = file.name;
+            fileInfo.style.display = 'block';
+
+            // Upload file
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showStatus('processing', '⏳ Uploading document...');
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    uploadedFilename = data.filename;
+                    processBtn.disabled = false;
+                    showStatus('success', '✅ Document uploaded successfully! Click "Generate Professional PDF" to continue.');
+                } else {
+                    showStatus('error', `❌ Upload failed: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                showStatus('error', `❌ Upload failed: ${error.message}`);
+            });
+        }
+
+        processBtn.addEventListener('click', () => {
+            if (!uploadedFilename) return;
+
+            processBtn.disabled = true;
+            showStatus('processing', '🔄 Processing your document with AI...');
+            progressSteps.style.display = 'block';
+
+            // Animate progress steps
+            updateStep(1, 'completed');
+            updateStep(2, 'active');
+
+            fetch(`/process/${uploadedFilename}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pdfFilename = data.pdf_filename;
+                    
+                    // Animate completion
+                    updateStep(2, 'completed');
+                    updateStep(3, 'completed');
+                    updateStep(4, 'active');
+                    
+                    setTimeout(() => {
+                        updateStep(4, 'completed');
+                        updateStep(5, 'active');
+                        
+                        setTimeout(() => {
+                            updateStep(5, 'completed');
+                            showStatus('success', '🎉 Your professional PDF estimate is ready!');
+                            downloadBtn.style.display = 'inline-block';
+                        }, 500);
+                    }, 500);
+                } else {
+                    showStatus('error', `❌ Processing failed: ${data.error}`);
+                    processBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                showStatus('error', `❌ Processing failed: ${error.message}`);
+                processBtn.disabled = false;
+            });
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (pdfFilename) {
+                window.location.href = `/download/${pdfFilename}`;
+            }
+        });
+
+        function showStatus(type, message) {
+            statusArea.className = `status-area ${type}`;
+            statusArea.style.display = 'block';
+            statusMessage.textContent = message;
+        }
+
+        function updateStep(stepNum, state) {
+            const step = document.getElementById(`step${stepNum}`);
+            const icon = step.querySelector('.step-icon');
+            
+            step.className = `progress-step ${state}`;
+            icon.className = `step-icon ${state}`;
+            
+            if (state === 'completed') {
+                icon.textContent = '✓';
+            } else if (state === 'active') {
+                step.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    </script>
+</body>
+</html>

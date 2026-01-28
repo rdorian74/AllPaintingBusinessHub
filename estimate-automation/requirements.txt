@@ -1,0 +1,14 @@
+# Estimate Automation System - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web requests
+requests>=2.28.0
+
+# Flask for dashboard
+Flask>=2.0.0
+
+# Windows notifications (optional, has fallback)
+win10toast>=0.9
+
+# For parsing (if needed)
+python-dateutil>=2.8.0

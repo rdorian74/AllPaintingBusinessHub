@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - All Painting Ltd.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .tooltip { position: relative; }
+        .tooltip .tooltiptext { visibility: hidden; width: 280px; background-color: #1f2937; color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 100; bottom: 125%; left: 50%; margin-left: -140px; opacity: 0; transition: opacity 0.3s; font-size: 12px; line-height: 1.4; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .status-badge { padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .section-help { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin-bottom: 16px; border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="bg-blue-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-envelope-open-text"></i> {{ app_name }}</h1>
+                    <p class="text-blue-200 text-sm">All Painting Ltd. - Automated Estimate Follow-ups</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="tooltip">
+                        <div class="bg-blue-700 rounded-lg px-4 py-2 text-sm">
+                            <div class="flex items-center gap-2"><i class="fas fa-database"></i><span>DB Updated:</span><span id="lastDbUpdate" class="font-mono">{{ stats.last_update[:19] if stats.last_update else 'Never' }}</span></div>
+                        </div>
+                        <span class="tooltiptext"><strong>Database Last Updated</strong><br>Shows when data was last modified.</span>
+                    </div>
+                    <button onclick="openSettingsModal()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-cog"></i> Settings</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <div class="section-help">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-sky-500 text-xl mt-1"></i>
+                <div>
+                    <h3 class="font-semibold text-gray-800">Welcome to Follow Up Manager</h3>
+                    <p class="text-gray-600 text-sm mt-1">Tracks estimate emails from <strong>info@allpaintingltd.com</strong>, monitors responses, generates AI follow-ups. Drafts saved to <strong>drafts/</strong> folder.</p>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-3xl font-bold text-gray-800">{{ stats.total_estimates }}</div>
+                <div class="text-sm text-gray-500">Total Estimates</div>
+                <div class="text-xs text-gray-400 mt-1">${{ "{:,.0f}".format(stats.total_amount or 0) }}</div>
+            </div>
+            <div class="bg-blue-50 rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div class="text-3xl font-bold text-blue-600">{{ stats.by_status.get('waiting', 0) }}</div>
+                <div class="text-sm text-gray-500">Waiting</div>
+                <div class="text-xs text-blue-400 mt-1">${{ "{:,.0f}".format(stats.totals_by_status.get('waiting', 0) or 0) }}</div>
+            </div>
+            <div class="bg-yellow-50 rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <div class="text-3xl font-bold text-yellow-600">{{ stats.by_status.get('in_conversation', 0) }}</div>
+                <div class="text-sm text-gray-500">In Conversation</div>
+                <div class="text-xs text-yellow-600 mt-1">${{ "{:,.0f}".format(stats.totals_by_status.get('in_conversation', 0) or 0) }}</div>
+            </div>
+            <div class="bg-gray-50 rounded-lg shadow p-4 border-l-4 border-gray-400">
+                <div class="text-3xl font-bold text-gray-600">{{ stats.by_status.get('on_hold', 0) }}</div>
+                <div class="text-sm text-gray-500">On Hold</div>
+                <div class="text-xs text-gray-400 mt-1">${{ "{:,.0f}".format(stats.totals_by_status.get('on_hold', 0) or 0) }}</div>
+            </div>
+            <div class="bg-purple-50 rounded-lg shadow p-4 border-l-4 border-purple-500">
+                <div class="text-3xl font-bold text-purple-600">{{ stats.draft_ready }}</div>
+                <div class="text-sm text-gray-500">Drafts Ready</div>
+            </div>
+            <div class="bg-green-50 rounded-lg shadow p-4 border-l-4 border-green-500">
+                <div class="text-3xl font-bold text-green-600">{{ stats.by_status.get('won', 0) }}</div>
+                <div class="text-sm text-gray-500">Won</div>
+                <div class="text-xs text-green-500 mt-1">${{ "{:,.0f}".format(stats.totals_by_status.get('won', 0) or 0) }}</div>
+            </div>
+            <div class="bg-red-50 rounded-lg shadow p-4 border-l-4 border-red-500">
+                <div class="text-3xl font-bold text-red-600">{{ stats.by_status.get('lost', 0) }}</div>
+                <div class="text-sm text-gray-500">Lost</div>
+                <div class="text-xs text-red-400 mt-1">${{ "{:,.0f}".format(stats.totals_by_status.get('lost', 0) or 0) }}</div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600 font-medium">Filter:</span>
+                    <div class="flex gap-1">
+                        <a href="?status=all" class="px-3 py-1 rounded-full text-sm {{ 'bg-gray-800 text-white' if status_filter == 'all' else 'bg-gray-200 hover:bg-gray-300' }}">All</a>
+                        <a href="?status=waiting" class="px-3 py-1 rounded-full text-sm {{ 'bg-blue-600 text-white' if status_filter == 'waiting' else 'bg-blue-100 text-blue-800 hover:bg-blue-200' }}">Waiting</a>
+                        <a href="?status=in_conversation" class="px-3 py-1 rounded-full text-sm {{ 'bg-yellow-500 text-white' if status_filter == 'in_conversation' else 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' }}">In Conversation</a>
+                        <a href="?status=on_hold" class="px-3 py-1 rounded-full text-sm {{ 'bg-gray-500 text-white' if status_filter == 'on_hold' else 'bg-gray-200 text-gray-700 hover:bg-gray-300' }}">On Hold</a>
+                        <a href="?status=draft_ready" class="px-3 py-1 rounded-full text-sm {{ 'bg-purple-600 text-white' if status_filter == 'draft_ready' else 'bg-purple-100 text-purple-800 hover:bg-purple-200' }}">Draft Ready</a>
+                        <a href="?status=won" class="px-3 py-1 rounded-full text-sm {{ 'bg-green-600 text-white' if status_filter == 'won' else 'bg-green-100 text-green-800 hover:bg-green-200' }}">Won</a>
+                        <a href="?status=lost" class="px-3 py-1 rounded-full text-sm {{ 'bg-red-600 text-white' if status_filter == 'lost' else 'bg-red-100 text-red-800 hover:bg-red-200' }}">Lost</a>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="scanNow()" id="scanBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-sync-alt"></i> Scan Now</button>
+                    <button onclick="openBackfillModal()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-history"></i> Backfill</button>
+                    <div class="border-l border-gray-300 h-8 mx-2"></div>
+                    <button onclick="exportCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button onclick="exportSQL()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-database"></i> SQL</button>
+                </div>
+            </div>
+            <div id="bulkActions" class="hidden mt-4 pt-4 border-t border-gray-200">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600"><span id="selectedCount">0</span> selected:</span>
+                    <button onclick="bulkAction('mark_won')" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded text-sm">Mark Won</button>
+                    <button onclick="bulkAction('mark_lost')" class="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded text-sm">Mark Lost</button>
+                    <button onclick="bulkAction('mark_on_hold')" class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1 rounded text-sm">Mark On Hold</button>
+                    <button onclick="bulkAction('delete')" class="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded text-sm">Delete</button>
+                </div>
+            </div>
+        </div>
+        <!-- Main Content: Table + Calendar -->
+        <div class="flex gap-4">
+            <!-- LEFT: Estimates Table -->
+            <div class="flex-1 bg-white rounded-lg shadow overflow-hidden">
+                <div class="max-h-[600px] overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="estimatesTable">
+                    <thead class="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th class="px-3 py-3 bg-gray-50"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="rounded"></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(1)">Estimate <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(2)">GC Company <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(3)">Project <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(4)">Amount <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(5)">Sent <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(6)">Last Activity <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(7)">Status <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 bg-gray-50" onclick="sortTable(8)">Next <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for est in estimates %}
+                        <tr class="hover:bg-gray-50" id="row-{{ est.id }}">
+                            <td class="px-3 py-4"><input type="checkbox" class="estimate-checkbox rounded" value="{{ est.id }}" onchange="updateBulkActions()"></td>
+                            <td class="px-4 py-4"><div class="font-medium text-gray-900">{{ est.display_code or est.estimate_code }}</div>{% if est.revision_number > 0 %}<span class="text-xs text-orange-600">Rev {{ est.revision_number }}</span>{% endif %}</td>
+                            <td class="px-4 py-4"><div class="text-sm text-gray-900">{{ est.gc_company or '-' }}</div><div class="text-xs text-gray-500">{{ est.contact_name or '' }}</div></td>
+                            <td class="px-4 py-4"><div class="text-sm text-gray-900">{{ est.project_name or '-' }}</div><div class="text-xs text-gray-500 max-w-xs truncate">{{ est.project_address or '' }}</div></td>
+                            <td class="px-4 py-4 text-sm text-gray-900">{% if est.total_amount %}${{ "{:,.2f}".format(est.total_amount) }}{% else %}-{% endif %}</td>
+                            <td class="px-4 py-4 text-sm text-gray-500">{{ est.estimate_date or '-' }}</td>
+                            <td class="px-4 py-4 text-sm text-gray-500">{{ est.last_contact_date or '-' }}</td>
+                            <td class="px-4 py-4">{% set status_style = status_colors.get(est.status, status_colors['waiting']) %}<span class="status-badge {{ status_style.bg }} {{ status_style.text }}">{{ est.status|replace('_', ' ')|title }}</span>{% if est.stop_followup %}<span class="text-xs text-gray-500 block mt-1"><i class="fas fa-pause"></i> Paused</span>{% endif %}</td>
+                            <td class="px-4 py-4 text-sm">{% if est.status in ['won', 'lost'] %}<span class="text-gray-400">-</span>{% elif est.stop_followup %}<span class="text-gray-400">Paused</span>{% else %}{{ est.next_followup_date or '-' }}{% endif %}</td>
+                            <td class="px-4 py-4">
+                                <div class="flex items-center gap-1">
+                                    <button onclick="viewConversation({{ est.id }})" class="p-2 text-blue-600 hover:bg-blue-100 rounded" title="View conversation"><i class="fas fa-comments"></i></button>
+                                    {% if est.status not in ['won', 'lost'] %}<button onclick="generateDraft({{ est.id }})" class="p-2 text-purple-600 hover:bg-purple-100 rounded" title="Generate draft"><i class="fas fa-magic"></i></button>{% endif %}
+                                    <div class="relative">
+                                        <button onclick="toggleMenu({{ est.id }})" class="p-2 text-gray-600 hover:bg-gray-100 rounded"><i class="fas fa-ellipsis-v"></i></button>
+                                        <div id="menu-{{ est.id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+                                            <button onclick="markStatus({{ est.id }}, 'won')" class="w-full text-left px-4 py-2 hover:bg-green-50 text-green-700"><i class="fas fa-trophy mr-2"></i>Mark Won</button>
+                                            <button onclick="markStatus({{ est.id }}, 'lost')" class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-700"><i class="fas fa-times-circle mr-2"></i>Mark Lost</button>
+                                            <button onclick="markStatus({{ est.id }}, 'on_hold')" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"><i class="fas fa-pause-circle mr-2"></i>On Hold</button>
+                                            <hr class="my-1">
+                                            <button onclick="openDelayModal({{ est.id }})" class="w-full text-left px-4 py-2 hover:bg-yellow-50 text-yellow-700"><i class="fas fa-clock mr-2"></i>Delay</button>
+                                            {% if est.stop_followup %}<button onclick="resumeFollowups({{ est.id }})" class="w-full text-left px-4 py-2 hover:bg-blue-50 text-blue-700"><i class="fas fa-play mr-2"></i>Resume</button>{% else %}<button onclick="stopFollowups({{ est.id }})" class="w-full text-left px-4 py-2 hover:bg-orange-50 text-orange-700"><i class="fas fa-stop mr-2"></i>Stop</button>{% endif %}
+                                            <hr class="my-1">
+                                            <button onclick="deleteEstimate({{ est.id }})" class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-700"><i class="fas fa-trash mr-2"></i>Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500"><i class="fas fa-inbox text-4xl mb-2"></i><p>No estimates found. Click <strong>Scan Now</strong> or <strong>Backfill</strong> to import.</p></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            <!-- RIGHT: Follow-up Calendar -->
+            <div class="w-80 flex-shrink-0 bg-white rounded-lg shadow p-4">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fas fa-calendar-alt text-blue-500"></i> Follow-up Calendar</h3>
+                <div class="flex gap-2">
+                    {% set today = now.strftime('%Y-%m-%d') %}
+                    {% set tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d') %}
+                    {% set day_after = (now + timedelta(days=2)).strftime('%Y-%m-%d') %}
+                    
+                    <!-- Today Column -->
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-red-500 text-white text-center py-2 rounded-t-lg">
+                            <div class="font-bold text-sm">TODAY</div>
+                            <div class="text-xs">{{ now.strftime('%b %d') }}</div>
+                        </div>
+                        <div class="border border-t-0 rounded-b-lg p-2 min-h-[300px] max-h-[400px] overflow-y-auto bg-red-50 space-y-2">
+                            {% for est in calendar_today %}
+                            <div class="{% if est.draft_ready %}bg-green-100 border-green-300{% else %}bg-white border-blue-300{% endif %} border rounded p-2 text-xs cursor-pointer hover:shadow" onclick="viewConversation({{ est.id }})">
+                                <div class="font-bold {% if est.draft_ready %}text-green-800{% else %}text-blue-800{% endif %}">{{ est.display_code or est.estimate_code }}{% if est.draft_ready %} ✓{% endif %}</div>
+                                <div class="text-gray-600 truncate">{{ est.project_name or est.gc_company or '-' }}</div>
+                                <div class="text-gray-500 mt-1">#{{ est.followup_count + 1 }}</div>
+                            </div>
+                            {% else %}
+                            <div class="text-gray-400 text-xs text-center py-4">No follow-ups</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Tomorrow Column -->
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-orange-500 text-white text-center py-2 rounded-t-lg">
+                            <div class="font-bold text-sm">TOMORROW</div>
+                            <div class="text-xs">{{ (now + timedelta(days=1)).strftime('%b %d') }}</div>
+                        </div>
+                        <div class="border border-t-0 rounded-b-lg p-2 min-h-[300px] max-h-[400px] overflow-y-auto bg-orange-50 space-y-2">
+                            {% for est in calendar_tomorrow %}
+                            <div class="{% if est.draft_ready %}bg-green-100 border-green-300{% else %}bg-white border-blue-300{% endif %} border rounded p-2 text-xs cursor-pointer hover:shadow" onclick="viewConversation({{ est.id }})">
+                                <div class="font-bold {% if est.draft_ready %}text-green-800{% else %}text-blue-800{% endif %}">{{ est.display_code or est.estimate_code }}{% if est.draft_ready %} ✓{% endif %}</div>
+                                <div class="text-gray-600 truncate">{{ est.project_name or est.gc_company or '-' }}</div>
+                                <div class="text-gray-500 mt-1">#{{ est.followup_count + 1 }}</div>
+                            </div>
+                            {% else %}
+                            <div class="text-gray-400 text-xs text-center py-4">No follow-ups</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Day After Column -->
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-gray-500 text-white text-center py-2 rounded-t-lg">
+                            <div class="font-bold text-sm">{{ (now + timedelta(days=2)).strftime('%a').upper() }}</div>
+                            <div class="text-xs">{{ (now + timedelta(days=2)).strftime('%b %d') }}</div>
+                        </div>
+                        <div class="border border-t-0 rounded-b-lg p-2 min-h-[300px] max-h-[400px] overflow-y-auto space-y-2">
+                            {% for est in calendar_day_after %}
+                            <div class="{% if est.draft_ready %}bg-green-100 border-green-300{% else %}bg-white border-blue-300{% endif %} border rounded p-2 text-xs cursor-pointer hover:shadow" onclick="viewConversation({{ est.id }})">
+                                <div class="font-bold {% if est.draft_ready %}text-green-800{% else %}text-blue-800{% endif %}">{{ est.display_code or est.estimate_code }}{% if est.draft_ready %} ✓{% endif %}</div>
+                                <div class="text-gray-600 truncate">{{ est.project_name or est.gc_company or '-' }}</div>
+                                <div class="text-gray-500 mt-1">#{{ est.followup_count + 1 }}</div>
+                            </div>
+                            {% else %}
+                            <div class="text-gray-400 text-xs text-center py-4">No follow-ups</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-gray-500 flex items-center gap-4">
+                    <span><span class="inline-block w-3 h-3 bg-green-100 border border-green-300 rounded mr-1"></span>Draft Ready</span>
+                    <span><span class="inline-block w-3 h-3 bg-white border border-blue-300 rounded mr-1"></span>Needs Follow-up</span>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><div class="flex justify-between items-center"><h2 class="text-xl font-bold text-gray-800"><i class="fas fa-cog mr-2"></i>Settings</h2><button onclick="closeSettingsModal()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button></div></div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-calendar-alt text-blue-500 mr-2"></i>Follow-up Timing</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm text-gray-600 mb-1">First Follow-up (days)</label><input type="number" id="firstFollowupDays" value="{{ settings.first_followup_days }}" min="1" max="60" class="w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm text-gray-600 mb-1">Subsequent Follow-ups (days)</label><input type="number" id="subsequentFollowupDays" value="{{ settings.subsequent_followup_days }}" min="1" max="30" class="w-full border rounded-lg px-3 py-2"></div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-clock text-green-500 mr-2"></i>Daily Auto-Scan</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 mb-3">
+                        <p class="text-sm text-gray-600 mb-2">When enabled, scans the previous 24 hours of emails once daily at the specified time.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Scan Time</label>
+                            <input type="time" id="dailyScanTime" value="{{ settings.daily_scan_time or '07:00' }}" class="w-full border rounded-lg px-3 py-2">
+                        </div>
+                        <div class="flex items-end">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="dailyScanEnabled" {{ 'checked' if settings.daily_scan_enabled == 'true' else '' }} class="w-5 h-5 rounded">
+                                <span class="text-gray-700">Enable Daily Scan</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="nextScanInfo" class="mt-3 text-sm text-gray-500"></div>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-database text-indigo-500 mr-2"></i>Database</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 text-sm mb-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <span class="text-gray-500">Total Estimates:</span><span class="font-medium">{{ stats.total_estimates }}</span>
+                            <span class="text-gray-500">Total Communications:</span><span class="font-medium">{{ stats.total_communications }}</span>
+                            <span class="text-gray-500">Database File:</span><span class="font-mono text-xs">followup_manager.db</span>
+                            <span class="text-gray-500">Last Updated:</span><span class="font-medium">{{ stats.last_update[:19] if stats.last_update else 'Never' }}</span>
+                        </div>
+                    </div>
+                    <button onclick="clearDatabase()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"><i class="fas fa-trash-alt"></i> Clear Database</button>
+                    <p class="text-xs text-gray-400 mt-2">Warning: This will delete ALL estimates, communications, and follow-ups. Cannot be undone.</p>
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Settings</button>
+            </div>
+        </div>
+    </div>
+    <!-- Backfill Modal -->
+    <div id="backfillModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b"><h2 class="text-xl font-bold text-gray-800"><i class="fas fa-history mr-2"></i>Backfill Historical Estimates</h2></div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Import historical estimate emails from Outlook.</p>
+                <label class="block text-sm text-gray-600 mb-2">How far back?</label>
+                <select id="backfillDays" class="w-full border rounded-lg px-3 py-2">{% for days in backfill_options %}<option value="{{ days }}">{{ days }} days</option>{% endfor %}</select>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <button onclick="closeBackfillModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+                <button onclick="runBackfill()" id="backfillBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Start Backfill</button>
+            </div>
+        </div>
+    </div>
+    <!-- Delay Modal -->
+    <div id="delayModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <div class="p-6 border-b"><h2 class="text-xl font-bold text-gray-800"><i class="fas fa-clock mr-2"></i>Delay Follow-up</h2></div>
+            <div class="p-6">
+                <label class="block text-sm text-gray-600 mb-2">Delay by how many days?</label>
+                <input type="number" id="delayDays" value="7" min="1" max="90" class="w-full border rounded-lg px-3 py-2">
+                <input type="hidden" id="delayEstimateId">
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <button onclick="closeDelayModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+                <button onclick="applyDelay()" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">Apply</button>
+            </div>
+        </div>
+    </div>
+    <!-- Conversation Modal -->
+    <div id="conversationModal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b sticky top-0 bg-white"><div class="flex justify-between items-center"><h2 class="text-xl font-bold text-gray-800"><i class="fas fa-comments mr-2"></i>Conversation History</h2><button onclick="closeConversationModal()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button></div></div>
+            <div id="conversationContent" class="p-6"><div class="loading mx-auto"></div></div>
+        </div>
+    </div>
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg hidden"><span id="toastMessage"></span></div>
+    <script>
+        function showToast(message, duration = 3000) { const toast = document.getElementById('toast'); document.getElementById('toastMessage').textContent = message; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), duration); }
+        async function apiCall(url, method = 'GET', data = null) { const options = { method, headers: { 'Content-Type': 'application/json' } }; if (data) options.body = JSON.stringify(data); const response = await fetch(url, options); return response.json(); }
+        function toggleMenu(id) { document.querySelectorAll('[id^="menu-"]').forEach(m => { if (m.id !== `menu-${id}`) m.classList.add('hidden'); }); document.getElementById(`menu-${id}`).classList.toggle('hidden'); }
+        document.addEventListener('click', (e) => { if (!e.target.closest('[id^="menu-"]') && !e.target.closest('.fa-ellipsis-v')) { document.querySelectorAll('[id^="menu-"]').forEach(m => m.classList.add('hidden')); } });
+        async function scanNow() { const btn = document.getElementById('scanBtn'); btn.disabled = true; btn.innerHTML = '<span class="loading"></span> Scanning...'; try { const result = await apiCall('/api/scan', 'POST', { days_back: 30 }); showToast(`Scan complete! ${result.new_estimates || 0} new estimates, ${result.new_communications || 0} emails.`); setTimeout(() => location.reload(), 1500); } catch (e) { showToast('Scan failed: ' + e.message); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> Scan Now'; } }
+        function openBackfillModal() { document.getElementById('backfillModal').classList.add('active'); }
+        function closeBackfillModal() { document.getElementById('backfillModal').classList.remove('active'); }
+        async function runBackfill() { const days = document.getElementById('backfillDays').value; const btn = document.getElementById('backfillBtn'); btn.disabled = true; btn.innerHTML = '<span class="loading"></span> Scanning...'; try { const result = await apiCall('/api/backfill', 'POST', { days: parseInt(days) }); showToast(`Backfill complete! ${result.new_estimates || 0} estimates.`); closeBackfillModal(); setTimeout(() => location.reload(), 1500); } catch (e) { showToast('Backfill failed: ' + e.message); } finally { btn.disabled = false; btn.innerHTML = 'Start Backfill'; } }
+        function openSettingsModal() { document.getElementById('settingsModal').classList.add('active'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('active'); }
+        async function saveSettings() { const settings = { first_followup_days: document.getElementById('firstFollowupDays').value, subsequent_followup_days: document.getElementById('subsequentFollowupDays').value, daily_scan_enabled: document.getElementById('dailyScanEnabled').checked ? 'true' : 'false', daily_scan_time: document.getElementById('dailyScanTime').value }; try { await apiCall('/api/settings', 'POST', settings); showToast('Settings saved!'); closeSettingsModal(); updateNextScanInfo(); } catch (e) { showToast('Failed: ' + e.message); } }
+        function updateNextScanInfo() { const enabled = document.getElementById('dailyScanEnabled').checked; const time = document.getElementById('dailyScanTime').value; const info = document.getElementById('nextScanInfo'); if (enabled) { info.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Daily scan scheduled at <strong>${time}</strong>`; } else { info.innerHTML = `<i class="fas fa-pause-circle text-gray-400"></i> Daily scan disabled`; } }
+        document.getElementById('dailyScanEnabled').addEventListener('change', updateNextScanInfo);
+        document.getElementById('dailyScanTime').addEventListener('change', updateNextScanInfo);
+        updateNextScanInfo();
+        async function clearDatabase() { if (!confirm('DELETE ALL DATA? This cannot be undone!')) return; if (!confirm('Are you REALLY sure? All estimates, communications, and follow-ups will be permanently deleted.')) return; try { await apiCall('/api/db/clear', 'POST'); showToast('Database cleared'); setTimeout(() => location.reload(), 1500); } catch (e) { showToast('Failed: ' + e.message); } }
+        function openDelayModal(id) { document.getElementById('delayEstimateId').value = id; document.getElementById('delayModal').classList.add('active'); document.querySelectorAll('[id^="menu-"]').forEach(m => m.classList.add('hidden')); }
+        function closeDelayModal() { document.getElementById('delayModal').classList.remove('active'); }
+        async function applyDelay() { const id = document.getElementById('delayEstimateId').value; const days = parseInt(document.getElementById('delayDays').value); try { await apiCall(`/api/estimates/${id}/delay`, 'POST', { days }); showToast(`Delayed by ${days} days`); closeDelayModal(); location.reload(); } catch (e) { showToast('Failed: ' + e.message); } }
+        async function markStatus(id, status) { try { await apiCall(`/api/estimates/${id}`, 'PATCH', { status }); showToast(`Marked as ${status}`); location.reload(); } catch (e) { showToast('Failed: ' + e.message); } }
+        async function stopFollowups(id) { try { await apiCall(`/api/estimates/${id}/stop`, 'POST'); showToast('Follow-ups stopped'); location.reload(); } catch (e) { showToast('Failed: ' + e.message); } }
+        async function resumeFollowups(id) { try { await apiCall(`/api/estimates/${id}/resume`, 'POST'); showToast('Follow-ups resumed'); location.reload(); } catch (e) { showToast('Failed: ' + e.message); } }
+        async function deleteEstimate(id) { if (!confirm('Delete this estimate?')) return; try { await apiCall(`/api/estimates/${id}`, 'DELETE'); showToast('Deleted'); document.getElementById(`row-${id}`).remove(); } catch (e) { showToast('Failed: ' + e.message); } }
+        async function generateDraft(id) { showToast('Generating AI draft...'); try { const result = await apiCall(`/api/followups/${id}/generate`, 'POST'); if (result.success) { showToast('Draft created! Check drafts/ folder and Outlook.'); location.reload(); } else { showToast('Failed: ' + (result.error || 'Unknown')); } } catch (e) { showToast('Failed: ' + e.message); } }
+        function closeConversationModal() { document.getElementById('conversationModal').classList.remove('active'); }
+        async function viewConversation(id) { document.getElementById('conversationModal').classList.add('active'); document.getElementById('conversationContent').innerHTML = '<div class="loading mx-auto"></div>'; try { const data = await apiCall(`/api/estimates/${id}`); let html = `<div class="mb-6 p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg">${data.estimate.estimate_code} - ${data.estimate.gc_company || 'Unknown'}</h3><p class="text-gray-600">${data.estimate.project_name || ''} | $${(data.estimate.total_amount || 0).toLocaleString()}</p></div><h4 class="font-semibold mb-4">Email History (${data.communications.length})</h4>`; if (data.communications.length === 0) { html += '<p class="text-gray-500">No emails found.</p>'; } else { data.communications.forEach(comm => { const isSent = comm.direction === 'sent'; html += `<div class="mb-4 p-4 rounded-lg ${isSent ? 'bg-blue-50 ml-8' : 'bg-gray-100 mr-8'}"><div class="flex justify-between items-start mb-2"><span class="font-medium ${isSent ? 'text-blue-700' : 'text-gray-700'}">${isSent ? '➡️ Sent' : '⬅️ Received'}</span><span class="text-sm text-gray-500">${comm.email_date || ''}</span></div><div class="text-sm font-medium mb-1">${comm.subject || 'No subject'}</div><div class="text-sm text-gray-600 whitespace-pre-wrap">${(comm.body_preview || comm.body_text || '').substring(0, 500)}${(comm.body_text || '').length > 500 ? '...' : ''}</div></div>`; }); } document.getElementById('conversationContent').innerHTML = html; } catch (e) { document.getElementById('conversationContent').innerHTML = '<p class="text-red-500">Failed to load.</p>'; } }
+        function toggleSelectAll() { const checked = document.getElementById('selectAll').checked; document.querySelectorAll('.estimate-checkbox').forEach(cb => cb.checked = checked); updateBulkActions(); }
+        function updateBulkActions() { const checked = document.querySelectorAll('.estimate-checkbox:checked'); document.getElementById('selectedCount').textContent = checked.length; document.getElementById('bulkActions').classList.toggle('hidden', checked.length === 0); }
+        async function bulkAction(action) { const ids = Array.from(document.querySelectorAll('.estimate-checkbox:checked')).map(cb => parseInt(cb.value)); if (ids.length === 0) return; if (action === 'delete' && !confirm(`Delete ${ids.length} estimates?`)) return; try { await apiCall('/api/estimates/bulk', 'POST', { ids, action }); showToast(`Updated ${ids.length} estimates`); location.reload(); } catch (e) { showToast('Failed: ' + e.message); } }
+        function exportCSV() { window.location.href = '/api/export/csv'; showToast('Downloading CSV...'); }
+        function exportSQL() { window.location.href = '/api/export/sql'; showToast('Downloading SQL...'); }
+        setInterval(async () => { try { const data = await apiCall('/api/db/last-update'); if (data.last_update) { document.getElementById('lastDbUpdate').textContent = data.last_update.substring(0, 19); } } catch (e) {} }, 30000);
+        
+        // Table sorting
+        let sortDirection = {};
+        function sortTable(colIndex) {
+            const table = document.getElementById('estimatesTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Toggle direction
+            sortDirection[colIndex] = !sortDirection[colIndex];
+            const dir = sortDirection[colIndex] ? 1 : -1;
+            
+            rows.sort((a, b) => {
+                const aCell = a.cells[colIndex];
+                const bCell = b.cells[colIndex];
+                if (!aCell || !bCell) return 0;
+                
+                let aVal = aCell.textContent.trim();
+                let bVal = bCell.textContent.trim();
+                
+                // Handle amounts (remove $ and ,)
+                if (colIndex === 4) {
+                    aVal = parseFloat(aVal.replace(/[$,]/g, '')) || 0;
+                    bVal = parseFloat(bVal.replace(/[$,]/g, '')) || 0;
+                    return (aVal - bVal) * dir;
+                }
+                
+                // Handle dates
+                if (colIndex === 5 || colIndex === 6 || colIndex === 8) {
+                    aVal = aVal === '-' ? '' : aVal;
+                    bVal = bVal === '-' ? '' : bVal;
+                    return aVal.localeCompare(bVal) * dir;
+                }
+                
+                return aVal.localeCompare(bVal) * dir;
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+    </script>
+</body>
+</html>

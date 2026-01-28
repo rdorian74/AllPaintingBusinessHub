@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Upload Payroll{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>📤 Upload Payroll Files</h2>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <h3 style="margin-bottom: 10px; color: var(--gray-700);">Drop payroll PDFs here</h3>
+                <p style="color: var(--gray-500);">or click to browse files</p>
+                <p style="color: var(--accent); font-size: 14px; margin-top: 10px; font-weight: 500;">
+                    ✓ You can add files from multiple folders - they accumulate!
+                </p>
+                <input type="file" id="fileInput" multiple accept=".pdf" style="display: none;">
+            </div>
+            
+            <div id="fileList" style="margin-top: 20px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h4>Selected Files: <span id="fileCount">0</span></h4>
+                    <button type="button" class="btn btn-outline" onclick="clearAllFiles()" style="padding: 6px 12px; font-size: 13px;">
+                        🗑️ Clear All
+                    </button>
+                </div>
+                <div id="fileItems"></div>
+            </div>
+            
+            <!-- Hidden input to hold all accumulated files -->
+            <input type="file" name="files" id="hiddenFileInput" multiple style="display: none;">
+            
+            <div style="margin-top: 25px; text-align: center;">
+                <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
+                    🔍 Process Files
+                </button>
+            </div>
+        </form>
+        
+        <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid var(--gray-200);">
+            <h4 style="margin-bottom: 15px; color: var(--gray-600);">📧 Email Integration</h4>
+            <div class="grid-2">
+                <div style="background: var(--gray-50); padding: 20px; border-radius: 8px;">
+                    <p style="font-size: 14px; color: var(--gray-600); margin-bottom: 10px;">
+                        <strong>Configured Email:</strong>
+                    </p>
+                    <p style="font-family: monospace; color: var(--primary);">thirtyeight00@gmail.com</p>
+                    <p style="font-size: 13px; color: var(--gray-500); margin-top: 10px;">
+                        Files from Eileen Law will be automatically detected
+                    </p>
+                </div>
+                <div style="background: var(--gray-50); padding: 20px; border-radius: 8px;">
+                    <p style="font-size: 14px; color: var(--gray-600); margin-bottom: 10px;">
+                        <strong>Expected Format:</strong>
+                    </p>
+                    <p style="font-size: 13px; color: var(--gray-500);">
+                        • Employee name in header<br>
+                        • NET PAY amount clearly visible<br>
+                        • Pay date and period information
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const fileItems = document.getElementById('fileItems');
+const uploadBtn = document.getElementById('uploadBtn');
+const fileCountSpan = document.getElementById('fileCount');
+
+// Store accumulated files
+let accumulatedFiles = [];
+
+// Drag and drop handlers
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    
+    const newFiles = Array.from(e.dataTransfer.files);
+    addFiles(newFiles);
+});
+
+fileInput.addEventListener('change', (e) => {
+    const newFiles = Array.from(e.target.files);
+    addFiles(newFiles);
+    // Clear the input so the same file can be selected again if needed
+    fileInput.value = '';
+});
+
+function addFiles(newFiles) {
+    newFiles.forEach(file => {
+        // Check if file already exists (by name and size)
+        const exists = accumulatedFiles.some(f => f.name === file.name && f.size === file.size);
+        if (!exists) {
+            accumulatedFiles.push(file);
+        }
+    });
+    updateFileList();
+}
+
+function removeFile(index) {
+    accumulatedFiles.splice(index, 1);
+    updateFileList();
+}
+
+function clearAllFiles() {
+    accumulatedFiles = [];
+    updateFileList();
+}
+
+function updateFileList() {
+    if (accumulatedFiles.length === 0) {
+        fileList.style.display = 'none';
+        uploadBtn.disabled = true;
+        return;
+    }
+    
+    fileList.style.display = 'block';
+    uploadBtn.disabled = false;
+    fileCountSpan.textContent = accumulatedFiles.length;
+    
+    fileItems.innerHTML = '';
+    
+    accumulatedFiles.forEach((file, index) => {
+        const isPDF = file.name.toLowerCase().endsWith('.pdf');
+        const item = document.createElement('div');
+        item.style.cssText = `
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: ${isPDF ? 'var(--gray-50)' : '#fee2e2'};
+            border-radius: 8px;
+            margin-bottom: 10px;
+        `;
+        
+        item.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 24px;">${isPDF ? '📄' : '⚠️'}</span>
+                <div>
+                    <p style="font-weight: 500;">${file.name}</p>
+                    <p style="font-size: 12px; color: var(--gray-500);">${formatFileSize(file.size)}</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: ${isPDF ? 'var(--accent)' : 'var(--danger)'};">
+                    ${isPDF ? '✓ Ready' : '✗ Not PDF'}
+                </span>
+                <button type="button" onclick="removeFile(${index})" 
+                        style="background: none; border: none; cursor: pointer; font-size: 18px; color: var(--danger);">
+                    ✕
+                </button>
+            </div>
+        `;
+        
+        fileItems.appendChild(item);
+    });
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Form submission - transfer accumulated files to FormData
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (accumulatedFiles.length === 0) {
+        alert('Please select at least one file');
+        return;
+    }
+    
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '⏳ Processing...';
+    
+    const formData = new FormData();
+    accumulatedFiles.forEach(file => {
+        formData.append('files', file);
+    });
+    
+    fetch('{{ url_for("upload") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Replace the page content with the results
+        document.open();
+        document.write(html);
+        document.close();
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error uploading files');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '🔍 Process Files';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Painting Ltd - Estimate Generator Installer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 50px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2B4C7E;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fc;
+            border-radius: 10px;
+        }
+
+        .section h2 {
+            color: #2B4C7E;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .btn {
+            background: #2B4C7E;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 10px 10px 0;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #1a3456;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(43, 76, 126, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .file-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-list li::before {
+            content: "📄";
+            margin-right: 10px;
+        }
+
+        code {
+            background: #e8ecf7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .steps {
+            counter-reset: step;
+        }
+
+        .step {
+            counter-increment: step;
+            margin: 20px 0;
+            padding-left: 40px;
+            position: relative;
+        }
+
+        .step::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: #2B4C7E;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        a {
+            color: #2B4C7E;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ALL PAINTING LTD.</div>
+            <h1>Estimate Generator - File Downloader</h1>
+            <p>Click the buttons below to download each file individually</p>
+        </div>
+
+        <div class="section">
+            <h2>📥 Download All Files (Click Each Button)</h2>
+            <p style="margin-bottom: 15px;">Download these files and save them in a folder called <code>estimate-generator</code></p>
+            
+            <button class="btn" onclick="downloadFile('app.py', APP_PY)">Download app.py</button>
+            <button class="btn" onclick="downloadFile('requirements.txt', REQUIREMENTS)">Download requirements.txt</button>
+            <button class="btn" onclick="downloadFile('start.sh', START_SH)">Download start.sh</button>
+            <button class="btn" onclick="downloadFile('start.bat', START_BAT)">Download start.bat</button>
+            <button class="btn btn-success" onclick="downloadFile('index.html', INDEX_HTML)">Download index.html (save in templates folder)</button>
+            <button class="btn btn-success" onclick="downloadFile('SETUP_GUIDE.txt', SETUP_GUIDE)">Download Setup Guide</button>
+            
+            <div class="success" id="successMsg">
+                ✅ File downloaded! Check your Downloads folder.
+            </div>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Important:</strong> After downloading index.html, create a subfolder called <code>templates</code> inside your <code>estimate-generator</code> folder and move index.html into it.
+        </div>
+
+        <div class="section">
+            <h2>📁 Folder Structure</h2>
+            <pre>estimate-generator/
+├── app.py
+├── requirements.txt
+├── start.sh
+├── start.bat
+└── templates/
+    └── index.html</pre>
+        </div>
+
+        <div class="section steps">
+            <h2>🚀 Quick Setup Steps</h2>
+            
+            <div class="step">
+                <h3>Create Folder</h3>
+                <p>Create a folder called <code>estimate-generator</code> on your desktop</p>
+            </div>
+
+            <div class="step">
+                <h3>Download Files</h3>
+                <p>Click all the download buttons above and save files to your folder</p>
+            </div>
+
+            <div class="step">
+                <h3>Create templates Folder</h3>
+                <p>Inside <code>estimate-generator</code>, create a folder called <code>templates</code></p>
+                <p>Move <code>index.html</code> into the <code>templates</code> folder</p>
+            </div>
+
+            <div class="step">
+                <h3>Install Python</h3>
+                <p>Go to <a href="https://www.python.org/downloads/" target="_blank">python.org/downloads</a></p>
+                <p>Download and install Python 3.8 or higher</p>
+                <p><strong>Windows:</strong> Check "Add Python to PATH" during installation!</p>
+            </div>
+
+            <div class="step">
+                <h3>Get API Key</h3>
+                <p>Go to <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></p>
+                <p>Sign up → Go to API Keys → Create new key → Copy it</p>
+            </div>
+
+            <div class="step">
+                <h3>Install Dependencies</h3>
+                <p><strong>Windows:</strong> Open Command Prompt in your folder, run:</p>
+                <pre>pip install -r requirements.txt</pre>
+                <p><strong>Mac/Linux:</strong> Open Terminal in your folder, run:</p>
+                <pre>pip3 install -r requirements.txt</pre>
+            </div>
+
+            <div class="step">
+                <h3>Set API Key</h3>
+                <p><strong>Windows:</strong></p>
+                <pre>set ANTHROPIC_API_KEY=your-key-here</pre>
+                <p><strong>Mac/Linux:</strong></p>
+                <pre>export ANTHROPIC_API_KEY='your-key-here'</pre>
+            </div>
+
+            <div class="step">
+                <h3>Run the App</h3>
+                <p><strong>Windows:</strong></p>
+                <pre>python app.py</pre>
+                <p><strong>Mac/Linux:</strong></p>
+                <pre>python3 app.py</pre>
+            </div>
+
+            <div class="step">
+                <h3>Open Browser</h3>
+                <p>Go to: <a href="http://localhost:5000" target="_blank">http://localhost:5000</a></p>
+                <p>Upload your .doc/.docx file and generate your PDF! 🎉</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📧 Need Help?</h2>
+            <p>Download the <strong>Setup Guide</strong> above for detailed instructions!</p>
+        </div>
+    </div>
+
+    <script>
+        // File contents embedded in JavaScript
+        const APP_PY = `from flask import Flask, render_template, request, jsonify, send_file
+import os
+import json
+import subprocess
+from datetime import datetime
+import re
+from weasyprint import HTML, CSS
+import tempfile
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+app.config['OUTPUT_FOLDER'] = '/tmp/outputs'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+
+def extract_text_from_doc(file_path):
+    try:
+        result = subprocess.run(['antiword', file_path], capture_output=True, text=True, check=True)
+        return result.stdout
+    except:
+        try:
+            import docx2txt
+            return docx2txt.process(file_path)
+        except Exception as e:
+            return f"Error extracting text: {str(e)}"
+
+def call_claude_for_extraction(document_text):
+    import anthropic
+    client = anthropic.Anthropic()
+    
+    extraction_prompt = f"""Extract ALL information from this painting estimate into structured JSON.
+
+Document:
+{document_text}
+
+Return ONLY valid JSON (no markdown):
+{{
+    "client_info": {{"company_name": "", "contact_person": "", "address": "", "city_province_postal": "", "phone": "", "email": ""}},
+    "project_info": {{"name": "", "address": "", "city_province_postal": ""}},
+    "estimate_number": "",
+    "date": "",
+    "scopes": [{{"scope_number": "", "title": "", "description": "", "amount": ""}}],
+    "scope_details": [{{"scope_id": "", "scope_title": "", "surface": "", "product": "", "walls_details": "", "doors_finishes": "", "paint_info": ""}}],
+    "important_notes": [],
+    "standard_inclusions": [],
+    "exclusions": [],
+    "warranty_info": {{"years": "2", "description": ""}},
+    "credentials": [],
+    "payment_terms": [],
+    "validity_days": "30"
+}}"""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=4000,
+        messages=[{"role": "user", "content": extraction_prompt}]
+    )
+    
+    response_text = message.content[0].text.strip()
+    response_text = re.sub(r'^\\x60\\x60\\x60json\\s*', '', response_text)
+    response_text = re.sub(r'\\s*\\x60\\x60\\x60$', '', response_text)
+    return json.loads(response_text)
+
+def call_claude_for_formatting(extracted_data):
+    import anthropic
+    client = anthropic.Anthropic()
+    
+    formatting_prompt = f"""Create a professional HTML estimate matching the exact format from the reference image.
+
+Data:
+{json.dumps(extracted_data, indent=2)}
+
+Requirements:
+1. Navy blue header (#2B4C7E) with company name and estimate number
+2. Two-column client/project info
+3. Executive summary table with subtotal, GST, total
+4. Yellow (#FFF9E6) terms section
+5. Green (#E8F5E8) inclusions with checkmarks
+6. Blue scope detail boxes
+7. Red (#8B0000) exclusions header
+8. Warranty icons
+9. Signature boxes
+10. Navy footer
+
+Return ONLY complete HTML with inline CSS."""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=8000,
+        messages=[{"role": "user", "content": formatting_prompt}]
+    )
+    
+    html_content = message.content[0].text.strip()
+    html_content = re.sub(r'^\\x60\\x60\\x60html\\s*', '', html_content)
+    html_content = re.sub(r'\\s*\\x60\\x60\\x60$', '', html_content)
+    return html_content
+
+def generate_pdf_from_html(html_content, output_path):
+    HTML(string=html_content).write_pdf(output_path)
+    return output_path
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith(('.doc', '.docx')):
+        return jsonify({'error': 'Only .doc and .docx files supported'}), 400
+    
+    try:
+        filename = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}.doc"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        return jsonify({'success': True, 'filename': filename, 'message': 'Document uploaded'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process/<filename>', methods=['POST'])
+def process_document(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
+        
+        document_text = extract_text_from_doc(filepath)
+        extracted_data = call_claude_for_extraction(document_text)
+        html_content = call_claude_for_formatting(extracted_data)
+        
+        output_filename = f"estimate_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        generate_pdf_from_html(html_content, output_path)
+        
+        return jsonify({'success': True, 'pdf_filename': output_filename, 'extracted_data': extracted_data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'File not found'}), 404
+    return send_file(filepath, as_attachment=True, download_name=filename)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)`;
+
+        const REQUIREMENTS = `flask==3.1.2
+anthropic==0.75.0
+weasyprint==67.0
+docx2txt==0.9
+textract==1.6.5`;
+
+        const START_SH = `#!/bin/bash
+echo "=================================="
+echo "All Painting Ltd - Estimate Generator"
+echo "=================================="
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "❌ ERROR: ANTHROPIC_API_KEY not set"
+    echo "Please set: export ANTHROPIC_API_KEY='your-key'"
+    exit 1
+fi
+echo "✅ API key found"
+echo "🚀 Starting server..."
+python3 app.py`;
+
+        const START_BAT = `@echo off
+echo ==================================
+echo All Painting Ltd - Estimate Generator
+echo ==================================
+if "%ANTHROPIC_API_KEY%"=="" (
+    echo ERROR: ANTHROPIC_API_KEY not set
+    echo Please set: set ANTHROPIC_API_KEY=your-key
+    pause
+    exit /b 1
+)
+echo API key found
+echo Starting server...
+python app.py
+pause`;
+
+        const INDEX_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Painting Ltd - Estimate Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 50px;
+        }
+        .header { text-align: center; margin-bottom: 40px; }
+        .logo { font-size: 36px; font-weight: bold; color: #2B4C7E; margin-bottom: 10px; }
+        .tagline { color: #666; font-size: 16px; margin-bottom: 30px; }
+        h1 { color: #333; font-size: 28px; margin-bottom: 10px; }
+        p { color: #666; line-height: 1.6; margin-bottom: 30px; }
+        .upload-area {
+            border: 3px dashed #2B4C7E;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            background: #f8f9fc;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+        .upload-area:hover { background: #e8ecf7; border-color: #1a3456; }
+        .upload-area.dragover { background: #d0d9f0; border-color: #1a3456; }
+        .upload-icon { font-size: 64px; color: #2B4C7E; margin-bottom: 20px; }
+        .upload-text { font-size: 18px; color: #333; margin-bottom: 10px; }
+        .upload-hint { font-size: 14px; color: #999; }
+        input[type="file"] { display: none; }
+        .btn {
+            background: #2B4C7E;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background: #1a3456;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(43, 76, 126, 0.3);
+        }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .status-area {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        .status-area.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .status-area.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .status-area.processing { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        .progress-steps { margin-top: 20px; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .progress-step.active { box-shadow: 0 4px 12px rgba(43, 76, 126, 0.2); }
+        .progress-step.completed { opacity: 0.7; }
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e8ecf7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+        .step-icon.active { background: #2B4C7E; color: white; }
+        .step-icon.completed { background: #28a745; color: white; }
+        .step-text { flex: 1; font-weight: 500; }
+        .download-btn { background: #28a745; margin-top: 20px; }
+        .download-btn:hover { background: #218838; }
+        .file-info {
+            background: #f8f9fc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        .file-info h3 { color: #2B4C7E; margin-bottom: 10px; }
+        .file-name { color: #333; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ALL PAINTING LTD.</div>
+            <div class="tagline">Professional Estimate Generator</div>
+        </div>
+        <h1>Transform Your Estimates</h1>
+        <p>Upload your Word document (.doc or .docx) and we'll convert it into a professional, standardized PDF estimate using AI.</p>
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Click to upload or drag and drop</div>
+            <div class="upload-hint">Supports .doc and .docx files (max 16MB)</div>
+            <input type="file" id="fileInput" accept=".doc,.docx">
+        </div>
+        <div class="file-info" id="fileInfo">
+            <h3>📋 File Selected</h3>
+            <div class="file-name" id="fileName"></div>
+        </div>
+        <div style="text-align: center;">
+            <button class="btn" id="processBtn" disabled>🚀 Generate Professional PDF</button>
+        </div>
+        <div class="status-area" id="statusArea">
+            <div id="statusMessage"></div>
+            <div class="progress-steps" id="progressSteps" style="display: none;">
+                <div class="progress-step" id="step1">
+                    <div class="step-icon">📄</div>
+                    <div class="step-text">Document loaded</div>
+                </div>
+                <div class="progress-step" id="step2">
+                    <div class="step-icon">🤖</div>
+                    <div class="step-text">Using Claude AI to extract data...</div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="step-icon">✅</div>
+                    <div class="step-text">AI extraction complete</div>
+                </div>
+                <div class="progress-step" id="step4">
+                    <div class="step-icon">📝</div>
+                    <div class="step-text">Generating professional PDF...</div>
+                </div>
+                <div class="progress-step" id="step5">
+                    <div class="step-icon">✨</div>
+                    <div class="step-text">PDF ready for download</div>
+                </div>
+            </div>
+            <button class="btn download-btn" id="downloadBtn" style="display: none;">📥 Download PDF</button>
+        </div>
+    </div>
+    <script>
+        let uploadedFilename = null;
+        let pdfFilename = null;
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const processBtn = document.getElementById('processBtn');
+        const statusArea = document.getElementById('statusArea');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressSteps = document.getElementById('progressSteps');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (!file) return;
+            if (!file.name.match(/\\.(doc|docx)$/i)) {
+                showStatus('error', '❌ Please upload a .doc or .docx file');
+                return;
+            }
+            fileName.textContent = file.name;
+            fileInfo.style.display = 'block';
+            const formData = new FormData();
+            formData.append('file', file);
+            showStatus('processing', '⏳ Uploading document...');
+            fetch('/upload', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    uploadedFilename = data.filename;
+                    processBtn.disabled = false;
+                    showStatus('success', '✅ Document uploaded! Click "Generate Professional PDF" to continue.');
+                } else {
+                    showStatus('error', \`❌ Upload failed: \${data.error}\`);
+                }
+            })
+            .catch(error => showStatus('error', \`❌ Upload failed: \${error.message}\`));
+        }
+
+        processBtn.addEventListener('click', () => {
+            if (!uploadedFilename) return;
+            processBtn.disabled = true;
+            showStatus('processing', '🔄 Processing your document with AI...');
+            progressSteps.style.display = 'block';
+            updateStep(1, 'completed');
+            updateStep(2, 'active');
+            fetch(\`/process/\${uploadedFilename}\`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pdfFilename = data.pdf_filename;
+                    updateStep(2, 'completed');
+                    updateStep(3, 'completed');
+                    updateStep(4, 'active');
+                    setTimeout(() => {
+                        updateStep(4, 'completed');
+                        updateStep(5, 'active');
+                        setTimeout(() => {
+                            updateStep(5, 'completed');
+                            showStatus('success', '🎉 Your professional PDF estimate is ready!');
+                            downloadBtn.style.display = 'inline-block';
+                        }, 500);
+                    }, 500);
+                } else {
+                    showStatus('error', \`❌ Processing failed: \${data.error}\`);
+                    processBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                showStatus('error', \`❌ Processing failed: \${error.message}\`);
+                processBtn.disabled = false;
+            });
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (pdfFilename) window.location.href = \`/download/\${pdfFilename}\`;
+        });
+
+        function showStatus(type, message) {
+            statusArea.className = \`status-area \${type}\`;
+            statusArea.style.display = 'block';
+            statusMessage.textContent = message;
+        }
+
+        function updateStep(stepNum, state) {
+            const step = document.getElementById(\`step\${stepNum}\`);
+            const icon = step.querySelector('.step-icon');
+            step.className = \`progress-step \${state}\`;
+            icon.className = \`step-icon \${state}\`;
+            if (state === 'completed') icon.textContent = '✓';
+            else if (state === 'active') step.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>`;
+
+        const SETUP_GUIDE = `ALL PAINTING LTD - ESTIMATE GENERATOR
+COMPLETE SETUP GUIDE
+=====================================
+
+STEP 1: CREATE PROJECT FOLDER
+------------------------------
+1. Create a folder on your desktop called "estimate-generator"
+2. Create a subfolder inside it called "templates"
+
+Your structure should look like:
+estimate-generator/
+├── templates/
+
+STEP 2: DOWNLOAD FILES
+------------------------------
+Download these files from the installer page and save them:
+
+Save to estimate-generator/:
+✓ app.py
+✓ requirements.txt
+✓ start.sh (Mac/Linux)
+✓ start.bat (Windows)
+
+Save to estimate-generator/templates/:
+✓ index.html
+
+STEP 3: INSTALL PYTHON
+------------------------------
+1. Go to: https://www.python.org/downloads/
+2. Download Python 3.8 or higher
+3. Run the installer
+4. IMPORTANT (Windows): Check "Add Python to PATH"
+5. Complete installation
+
+Test it:
+Windows: Open cmd, type: python --version
+Mac/Linux: Open Terminal, type: python3 --version
+
+STEP 4: GET ANTHROPIC API KEY
+------------------------------
+1. Go to: https://console.anthropic.com/
+2. Sign up or log in
+3. Click "API Keys" in left menu
+4. Click "Create Key"
+5. Name it "Estimate Generator"
+6. COPY THE KEY - you won't see it again!
+7. Save it in a notepad temporarily
+
+STEP 5: INSTALL PYTHON PACKAGES
+------------------------------
+1. Open Terminal/Command Prompt
+2. Navigate to your folder:
+   
+   Windows:
+   cd C:\\Users\\YourName\\Desktop\\estimate-generator
+   
+   Mac/Linux:
+   cd ~/Desktop/estimate-generator
+
+3. Install packages:
+   
+   Windows:
+   pip install -r requirements.txt
+   
+   Mac/Linux:
+   pip3 install -r requirements.txt
+
+4. Wait 2-5 minutes for installation
+
+STEP 6: (OPTIONAL) INSTALL ANTIWORD
+------------------------------
+This is only needed for old .doc files. Skip if you only have .docx files.
+
+Windows:
+1. Go to: http://www.winfield.demon.nl/
+2. Download antiword for Windows
+3. Extract and copy antiword.exe to C:\\Windows\\System32\\
+
+Mac:
+brew install antiword
+
+Linux (if you have sudo):
+sudo apt-get install antiword
+
+STEP 7: SET YOUR API KEY
+------------------------------
+EVERY TIME before running, you need to set the API key:
+
+Windows (in Command Prompt):
+set ANTHROPIC_API_KEY=paste-your-key-here
+
+Mac/Linux (in Terminal):
+export ANTHROPIC_API_KEY='paste-your-key-here'
+
+To make it permanent:
+Windows: Add to Environment Variables (see full guide)
+Mac/Linux: Add to ~/.bashrc or ~/.zshrc
+
+STEP 8: RUN THE APPLICATION
+------------------------------
+1. Make sure you're in the estimate-generator folder
+2. Make sure you set the API key (Step 7)
+3. Run:
+
+   Windows:
+   python app.py
+   
+   Mac/Linux:
+   python3 app.py
+
+4. You should see:
+   "Running on http://127.0.0.1:5000"
+
+5. DO NOT CLOSE this window!
+
+STEP 9: OPEN IN BROWSER
+------------------------------
+1. Open your web browser (Chrome, Firefox, Safari, Edge)
+2. Go to: http://localhost:5000
+3. You should see the upload page!
+
+STEP 10: USE THE APP
+------------------------------
+1. Click upload area or drag .doc/.docx file
+2. Wait for upload confirmation
+3. Click "Generate Professional PDF"
+4. Watch the AI process your document (15-30 seconds)
+5. Click "Download PDF" when ready!
+
+TROUBLESHOOTING
+===============
+
+"Module not found" error:
+→ Run: pip install -r requirements.txt
+
+"ANTHROPIC_API_KEY not set":
+→ Go back to Step 7 and set your key
+→ Make sure you close and reopen Terminal/Command Prompt after setting
+
+"Port 5000 already in use":
+→ Edit app.py, change port=5000 to port=5001
+→ Then go to http://localhost:5001
+
+"Permission denied" (Mac/Linux):
+→ Run: chmod +x start.sh
+
+PDF generation fails:
+→ Make sure all packages installed correctly
+→ Try: pip install --upgrade weasyprint
+
+File won't upload:
+→ Check file is .doc or .docx
+→ Check file is under 16MB
+→ Try a different browser
+
+COSTS
+=====
+Typical cost per document: $0.02 - $0.05
+Check usage at: https://console.anthropic.com/settings/billing
+
+NEXT TIME YOU USE IT
+====================
+1. Open Terminal/Command Prompt
+2. cd to estimate-generator folder
+3. Set API key (Step 7)
+4. Run: python app.py (or python3 app.py)
+5. Open: http://localhost:5000
+
+STOPPING THE APP
+================
+Press Ctrl+C in the Terminal/Command Prompt window
+
+NEED MORE HELP?
+===============
+Email support or check the README.md file
+
+Made with ❤️ using Claude AI
+All Painting Ltd © 2025`;
+
+        function downloadFile(filename, content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const successMsg = document.getElementById('successMsg');
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>`;
+
+        // Display on page load
+        console.log('File downloader ready! Click buttons to download each file.');
+    </script>
+</body>
+</html>
