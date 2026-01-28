@@ -129,7 +129,10 @@ COST_PER_1M_OUTPUT_TOKENS = 15.00
 # DATABASE
 # =============================================================================
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "bid_agent.db")
+DATABASE_PATH = os.environ.get(
+    "BID_ADDENDUM_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "bid_agent.db"),
+)
 
 # =============================================================================
 # DASHBOARD SETTINGS

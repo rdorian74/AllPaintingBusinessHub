@@ -30,7 +30,10 @@ app.secret_key = 'all_painting_payroll_2026_secure_key'
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 DATA_FOLDER = os.path.join(os.path.dirname(__file__), 'data')
-DB_PATH = os.path.join(DATA_FOLDER, 'payroll.db')
+DB_PATH = os.environ.get(
+    "PAYROLL_DB_PATH",
+    os.path.join(DATA_FOLDER, "payroll.db"),
+)
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
@@ -39,8 +42,12 @@ os.makedirs(DATA_FOLDER, exist_ok=True)
 EILEEN_EMAIL = 'thirtyeight00@gmail.com'
 NOTIFICATION_EMAIL = 'info@allpaintingltd.com'
 
-# Initialize Anthropic client
-client = anthropic.Anthropic()
+def get_anthropic_client():
+    """Lazy-load Anthropic client to keep imports lightweight for tests."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not configured")
+    return anthropic.Anthropic(api_key=api_key)
 
 def init_db():
     """Initialize the SQLite database with all required tables."""
@@ -152,6 +159,11 @@ def extract_payroll_data_with_ai(pdf_path):
     """
     import base64
     from pdf2image import convert_from_path
+
+    try:
+        client = get_anthropic_client()
+    except Exception as exc:
+        return None, str(exc)
     
     # First, try to extract text from PDF
     full_text = ""
