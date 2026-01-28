@@ -36,7 +36,10 @@ Director | All Painting Ltd.
 🌐 https://allpaintingltd.com/"""
 
 # Database
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "followup_manager.db")
+DATABASE_PATH = os.environ.get(
+    "FOLLOWUP_MANAGER_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "followup_manager.db"),
+)
 
 # Patterns - includes optional -A, -B, -C suffix for multi-contractor estimates
 ESTIMATE_CODE_PATTERN = r"(2[4-9][CRcr])[-\s]?(\d{3})(?:[-\s]?([A-Za-z]))?"
