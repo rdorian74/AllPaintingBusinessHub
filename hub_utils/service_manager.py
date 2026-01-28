@@ -12,6 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def _load_psutil():
     try:
         import psutil  # type: ignore
+    except ImportError:
+        return None
     except ImportError as exc:
         raise RuntimeError("psutil is required to manage service processes.") from exc
     return psutil
@@ -146,6 +148,10 @@ class ServiceManager:
         if psutil is None:
             if pid:
                 try:
+                    os.kill(pid, signal.SIGTERM)
+                except OSError:
+                    pass
+        elif process:
                     if os.name == "nt":
                         os.kill(pid, signal.SIGTERM)
                     else:
