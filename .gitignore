@@ -8,3 +8,4 @@ venv/
 *.log
 runtime/
 logs/
+service_pids.json
