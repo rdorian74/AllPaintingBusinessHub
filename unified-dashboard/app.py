@@ -139,11 +139,16 @@ def bids_page():
     if bids_data and isinstance(bids_data, dict):
         bids = bids_data.get("bids", [])
 
+    running = sum(1 for s in statuses.values() if s)
+    stopped = len(statuses) - running
+
     return render_template("bids.html",
                           hub_name=config["hub_name"],
                           services=config["services"],
                           statuses=statuses,
                           bids=bids,
+                          running_count=running,
+                          stopped_count=stopped,
                           current_page="bids")
 
 
@@ -157,11 +162,16 @@ def estimates_page():
     # Try to get AI agent stats
     ai_stats = safe_request(f"{SERVICE_ENDPOINTS['ai-agent']}/api/stats", timeout=3)
 
+    running = sum(1 for s in statuses.values() if s)
+    stopped = len(statuses) - running
+
     return render_template("estimates.html",
                           hub_name=config["hub_name"],
                           services=config["services"],
                           statuses=statuses,
                           ai_stats=ai_stats,
+                          running_count=running,
+                          stopped_count=stopped,
                           current_page="estimates")
 
 
@@ -178,12 +188,17 @@ def invoices_page():
     # Try to get QB status
     qb_status = safe_request(f"{SERVICE_ENDPOINTS['quickbooks-sync']}/api/status", timeout=3)
 
+    running = sum(1 for s in statuses.values() if s)
+    stopped = len(statuses) - running
+
     return render_template("invoices.html",
                           hub_name=config["hub_name"],
                           services=config["services"],
                           statuses=statuses,
                           counter_data=counter_data,
                           qb_status=qb_status,
+                          running_count=running,
+                          stopped_count=stopped,
                           current_page="invoices")
 
 
@@ -198,12 +213,17 @@ def followups_page():
     followups = safe_request(f"{SERVICE_ENDPOINTS['followup-manager']}/api/followups/pending", timeout=3)
     estimates = safe_request(f"{SERVICE_ENDPOINTS['followup-manager']}/api/estimates", timeout=3)
 
+    running = sum(1 for s in statuses.values() if s)
+    stopped = len(statuses) - running
+
     return render_template("followups.html",
                           hub_name=config["hub_name"],
                           services=config["services"],
                           statuses=statuses,
                           followups=followups,
                           estimates=estimates,
+                          running_count=running,
+                          stopped_count=stopped,
                           current_page="followups")
 
 
@@ -218,12 +238,17 @@ def payroll_page():
     payroll_stats = safe_request(f"{SERVICE_ENDPOINTS['payroll-app']}/api/stats", timeout=3)
     pending = safe_request(f"{SERVICE_ENDPOINTS['payroll-app']}/api/pending", timeout=3)
 
+    running = sum(1 for s in statuses.values() if s)
+    stopped = len(statuses) - running
+
     return render_template("payroll.html",
                           hub_name=config["hub_name"],
                           services=config["services"],
                           statuses=statuses,
                           payroll_stats=payroll_stats,
                           pending_payments=pending,
+                          running_count=running,
+                          stopped_count=stopped,
                           current_page="payroll")
 
 
