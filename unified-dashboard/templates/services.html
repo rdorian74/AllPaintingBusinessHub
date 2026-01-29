@@ -39,7 +39,7 @@
                 </div>
                 <div>
                     <p class="text-gray-400 text-sm">Running</p>
-                    <p class="text-3xl font-bold text-green-400">{{ running_count }}</p>
+                    <p class="text-3xl font-bold text-green-400">{{ running_count|default(0) }}</p>
                 </div>
             </div>
         </div>
@@ -52,7 +52,7 @@
                 </div>
                 <div>
                     <p class="text-gray-400 text-sm">Stopped</p>
-                    <p class="text-3xl font-bold text-red-400">{{ stopped_count }}</p>
+                    <p class="text-3xl font-bold text-red-400">{{ stopped_count|default(0) }}</p>
                 </div>
             </div>
         </div>
@@ -65,7 +65,7 @@
                 </div>
                 <div>
                     <p class="text-gray-400 text-sm">Total</p>
-                    <p class="text-3xl font-bold text-primary-400">{{ running_count + stopped_count }}</p>
+                    <p class="text-3xl font-bold text-primary-400">{{ (running_count|default(0)) + (stopped_count|default(0)) }}</p>
                 </div>
             </div>
         </div>
