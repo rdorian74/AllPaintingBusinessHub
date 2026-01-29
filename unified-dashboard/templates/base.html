@@ -184,9 +184,9 @@
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2 text-sm">
                         <span class="status-dot running"></span>
-                        <span class="text-gray-400" id="running-count">{{ running_count }}</span>
+                        <span class="text-gray-400" id="running-count">{{ running_count|default(0) }}</span>
                         <span class="text-gray-500">/</span>
-                        <span class="text-gray-400" id="total-count">{{ running_count + stopped_count }}</span>
+                        <span class="text-gray-400" id="total-count">{{ (running_count|default(0)) + (stopped_count|default(0)) }}</span>
                     </div>
                 </div>
             </div>

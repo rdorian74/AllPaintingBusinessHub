@@ -76,7 +76,7 @@
                 </div>
                 <div class="flex items-center justify-between">
                     <span class="text-gray-400">Next Invoice ID</span>
-                    <span class="text-primary-400 font-mono">{{ counter_data.prefix or '25C' }}-{{ '%03d' % (counter_data.next or 1) }}</span>
+                    <span class="text-primary-400 font-mono">{{ counter_data.prefix|default('25C') }}-{{ '%03d' % (counter_data.next|default(1)) }}</span>
                 </div>
             </div>
             {% else %}
