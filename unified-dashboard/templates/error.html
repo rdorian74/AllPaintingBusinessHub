@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error {{ code }} - Business Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="text-gray-100 flex items-center justify-center min-h-screen">
+    <div class="max-w-2xl w-full mx-4">
+        <div class="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/20 mb-4">
+                    <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <h1 class="text-4xl font-bold text-white">{{ code }}</h1>
+                <p class="text-gray-400 mt-2">{{ message }}</p>
+            </div>
+
+            {% if details %}
+            <div class="bg-dark-900/50 rounded-lg p-4 mt-4">
+                <p class="text-sm text-gray-400 font-mono">{{ details }}</p>
+            </div>
+            {% endif %}
+
+            {% if traceback %}
+            <details class="mt-4">
+                <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-300">Show full traceback</summary>
+                <pre class="mt-2 bg-black/50 rounded-lg p-4 text-xs text-red-300 overflow-x-auto">{{ traceback }}</pre>
+            </details>
+            {% endif %}
+
+            <div class="mt-6 flex justify-center space-x-4">
+                <a href="/" class="px-4 py-2 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-sm font-medium">
+                    Go to Dashboard
+                </a>
+                <button onclick="location.reload()" class="px-4 py-2 rounded-lg bg-gray-500/20 text-gray-400 hover:bg-gray-500/30 text-sm font-medium">
+                    Retry
+                </button>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-600 text-xs mt-4">All Painting Ltd - Business Hub</p>
+    </div>
+</body>
+</html>

@@ -72,8 +72,13 @@ class ServiceManager:
 
     def _load_pids(self) -> dict:
         if self.pid_store_path.exists():
-            with open(self.pid_store_path, "r", encoding="utf-8") as handle:
-                return json.load(handle)
+            try:
+                with open(self.pid_store_path, "r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+                if isinstance(data, dict):
+                    return data
+            except (json.JSONDecodeError, OSError):
+                pass
         return {}
 
     def _save_pids(self) -> None:

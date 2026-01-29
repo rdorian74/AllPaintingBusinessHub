@@ -25,6 +25,30 @@ from hub_utils.service_manager import ServiceManager, load_services
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "unified-hub-secret-key")
 
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("error.html", code=404, message="Page not found"), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    import traceback
+    tb = traceback.format_exc()
+    return render_template("error.html", code=500,
+                           message="Internal server error",
+                           details=str(e), traceback=tb), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    tb = traceback.format_exc()
+    return render_template("error.html", code=500,
+                           message=str(e),
+                           details=type(e).__name__,
+                           traceback=tb), 500
+
 CONFIG_PATH = REPO_ROOT / "hub-config" / "main_services.json"
 RUNTIME_DIR = REPO_ROOT / "runtime"
 LOGS_DIR = REPO_ROOT / "logs"
@@ -88,6 +112,7 @@ def get_service_manager():
 
 
 def safe_request(url, method="GET", timeout=5, **kwargs):
+    """Make HTTP request, return parsed JSON (dict/list) or None. Never returns raw text."""
     if requests is None:
         return None
     try:
@@ -97,8 +122,8 @@ def safe_request(url, method="GET", timeout=5, **kwargs):
             resp = requests.post(url, timeout=timeout, **kwargs)
         else:
             return None
-        ct = resp.headers.get("content-type", "")
-        return resp.json() if "json" in ct else resp.text
+        data = resp.json()
+        return data
     except Exception:
         return None
 
@@ -296,6 +321,8 @@ def api_overview():
 
 @app.route("/api/proxy/<service_id>/<path:endpoint>", methods=["GET", "POST"])
 def api_proxy(service_id, endpoint):
+    if requests is None:
+        return jsonify({"error": "requests module not installed"}), 503
     if service_id not in SERVICE_ENDPOINTS:
         return jsonify({"error": "Unknown service"}), 404
     url = f"{SERVICE_ENDPOINTS[service_id]}/{endpoint}"
@@ -304,8 +331,10 @@ def api_proxy(service_id, endpoint):
             resp = requests.post(url, json=request.get_json(), timeout=30)
         else:
             resp = requests.get(url, params=request.args, timeout=30)
-        ct = resp.headers.get("content-type", "")
-        return (jsonify(resp.json()), resp.status_code) if "json" in ct else (resp.text, resp.status_code)
+        try:
+            return jsonify(resp.json()), resp.status_code
+        except ValueError:
+            return resp.text, resp.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
