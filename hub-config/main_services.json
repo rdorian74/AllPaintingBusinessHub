@@ -1,10 +1,10 @@
 {
   "hub_name": "All Painting Business Hub",
   "services": {
-    "unified-dashboard": {
-      "name": "Unified Dashboard",
-      "port": 5050,
-      "path": "unified-dashboard",
+    "master-dashboard": {
+      "name": "Master Dashboard",
+      "port": 5099,
+      "path": "master-dashboard",
       "script": "app.py",
       "has_venv": false,
       "has_ui": true
